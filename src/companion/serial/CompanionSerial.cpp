@@ -102,7 +102,22 @@ void CompanionSerial::close() {
 }
 
 bool CompanionSerial::active() const noexcept {
-    return active_;
+    return active_.load(std::memory_order_relaxed);
+}
+
+companion::serial::TransferStatus CompanionSerial::transferStatus() const {
+    using companion::serial::TransferActivity;
+    const auto name = request_.query.find("name");
+    const std::string_view filename = name == request_.query.end() ? std::string_view{} : name->second;
+    if (processing_)
+        return {.activity = TransferActivity::Processing, .name = filename};
+    if (requestId_ != 0 && request_.totalBytes != 0)
+        return {.activity = TransferActivity::Receiving, .completedBytes = receivedBytes_,
+                .totalBytes = request_.totalBytes, .name = filename};
+    if (responseRequestId_ != 0 && !responseBody_.empty())
+        return {.activity = TransferActivity::Sending, .completedBytes = responseOffset_,
+                .totalBytes = responseBody_.size()};
+    return {};
 }
 
 void CompanionSerial::readHandshake(uint32_t nowMs) {
@@ -391,7 +406,13 @@ void CompanionSerial::handleRequestEnd(const companion::serial::Frame& frame) {
         requestFile_ = Board::Storage::filesystem().open(kSpoolPath.data(), FILE_READ);
 
     Logger::checkpoint("companion_usb_dispatch");
+#ifdef RAPID_READER
+    processing_ = request_.method != "GET";
+    if (processing_)
+        api_.renderStatus(true, transferStatus());
+#endif
     dispatchRequest(buffered);
+    processing_ = false;
     Logger::checkpoint("companion_usb_complete");
     resetRequest();
 }
@@ -638,6 +659,7 @@ void CompanionSerial::sendFrame(companion::serial::Frame frame) {
 }
 
 void CompanionSerial::resetRequest() {
+    processing_ = false;
     if (requestFile_)
         requestFile_.close();
     auto& filesystem = Board::Storage::filesystem();

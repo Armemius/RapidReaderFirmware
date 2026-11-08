@@ -15,6 +15,9 @@
 #include "logging/Logger.h"
 #include "text/AsciiText.h"
 #include "update/OtaUpdater.h"
+#ifdef RAPID_READER
+#include "ui/RapidReaderConnection.h"
+#endif
 
 namespace {
 
@@ -105,11 +108,15 @@ bool CompanionApi::active() const {
     return active_.load();
 }
 
-void CompanionApi::renderStatus(bool usbConnected) {
+void CompanionApi::renderStatus(bool usbConnected, [[maybe_unused]] const companion::serial::TransferStatus& transfer) {
     const std::scoped_lock lock{operationsMutex_, networkStateMutex_};
-    if (usbConnected)
+    if (usbConnected) {
+#ifdef RAPID_READER
+        screens::rapidReaderUsb(ui_, transfer);
+#else
         screens::status(ui_, "USB companion", "Connected", "Keep the browser open");
-    else
+#endif
+    } else
         screens::status(ui_, ui_.text(UiText::Sync), statusLine1(), statusLine2());
 }
 

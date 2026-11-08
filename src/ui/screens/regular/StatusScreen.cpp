@@ -1,12 +1,19 @@
 #include "ui/screens/Screens.h"
 #ifdef RAPID_READER
 #include "ui/RapidReaderUi.h"
+#include "ui/RapidReaderBrand.h"
 #endif
 
 namespace screens {
 
     void status(ui::Context& ui, std::string_view title, std::string_view line1, std::string_view line2,
                 int progressValue) {
+#ifdef RAPID_READER
+        if (ui.booting()) {
+            rapidReaderBoot(ui);
+            return;
+        }
+#endif
         ui.beginFrame(static_cast<uint8_t>(Screen::Status));
 #ifdef RAPID_READER
         ui.label({24, 0, 420, 38}, "RAPIDREADER", 1, ui::themes::Muted);

@@ -35,7 +35,7 @@ def main():
     sources = ["ui/Ui.cpp", "ui/Controls.cpp", "ui/Icons.cpp", "ui/Theme.cpp", "ui/Localization.generated.cpp",
                "localization/LocalePack.cpp", "text/LocaleTag.cpp", "text/BidiText.cpp", "text/TextShaping.cpp",
                "ui/screens/regular/ScreenCommon.cpp", "ui/screens/regular/InterfaceSettingsScreen.cpp",
-               "ui/screens/regular/ReadScreen.cpp", "ui/RapidReaderBrand.cpp", "ui/RapidReaderUi.cpp", "ui/screens/regular/LibraryScreen.cpp",
+               "ui/screens/regular/ReadScreen.cpp", "ui/RapidReaderBrand.cpp", "ui/RapidReaderConnection.cpp", "ui/RapidReaderTutorial.cpp", "ui/RapidReaderUi.cpp", "ui/screens/regular/LibraryScreen.cpp",
                "ui/screens/regular/ChaptersScreen.cpp", "ui/screens/regular/StatusScreen.cpp", "reader/ReadingLoop.cpp"]
     includes = [ROOT / "test/native_watch_preview", ROOT / "test/native_canvas", ROOT / "test/support",
                 ROOT / "src", args.library, args.harfbuzz_include, ROOT / "lib/SheenBidi/upstream/Headers",

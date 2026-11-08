@@ -8,6 +8,9 @@
 #include "settings/SettingsCodec.h"
 #include "ui/RapidReaderBrand.h"
 #include "ui/RapidReaderUi.h"
+#include "ui/RapidReaderConnection.h"
+#include "ui/RapidReaderTutorial.h"
+#include "product/RapidReaderText.h"
 #include "fonts/RapidMono13.h"
 #include "ui/screens/LibraryScreen.h"
 #include "ui/screens/ChaptersScreen.h"
@@ -237,6 +240,151 @@ void test_library_and_chapter_pages_keep_every_item_accessible() {
     TEST_ASSERT_EQUAL_UINT32(10, reader.state.wordIndex);
 }
 
+void test_boot_keeps_branding_over_low_level_storage_statuses() {
+    RecordingGfx gfx;
+    ui::Context ui(gfx);
+    ui.setTheme(testTheme());
+    ui.setBooting(true);
+    screens::rapidReaderBoot(ui, product::text(product::Text::LibrarySetup));
+    TEST_ASSERT_TRUE(gfx.text.find("RAPIDREADER") != std::string::npos);
+    TEST_ASSERT_TRUE(gfx.text.find("ПОДГОТОВКА БИБЛИОТЕКИ") != std::string::npos);
+    screens::status(ui, "SD", "Mounting card", "EPUB converts on open", 5);
+    TEST_ASSERT_TRUE(ui.bootMessage() == "Подготовка библиотеки");
+    TEST_ASSERT_TRUE(gfx.text.find("Mounting card") == std::string::npos);
+    TEST_ASSERT_TRUE(gfx.text.find("EPUB converts") == std::string::npos);
+    ui.setBooting(false);
+    screens::status(ui, "Библиотека", "Книга открыта");
+    TEST_ASSERT_TRUE(gfx.text.find("Книга открыта") != std::string::npos);
+}
+
+void test_usb_screens_follow_the_device_language_and_real_transfer_counts() {
+    RecordingGfx gfx;
+    ui::Context ui(gfx);
+    ui.setTheme(testTheme());
+    screens::rapidReaderUsb(ui);
+    TEST_ASSERT_TRUE(gfx.text.find("ПОДКЛЮЧЕНО") != std::string::npos);
+    TEST_ASSERT_TRUE(gfx.text.find("Не закрывайте вкладку браузера") != std::string::npos);
+    screens::rapidReaderUsb(ui, {.activity = companion::serial::TransferActivity::Receiving,
+                                 .completedBytes = 50, .totalBytes = 100, .name = "Война и мир.rsvp"});
+    TEST_ASSERT_TRUE(gfx.text.find("ПРИЁМ ДАННЫХ") != std::string::npos);
+    TEST_ASSERT_TRUE(gfx.text.find("Война и мир.rsvp") != std::string::npos);
+    TEST_ASSERT_TRUE(gfx.text.find("50%") != std::string::npos);
+    ui.setLocale("en");
+    screens::rapidReaderUsb(ui);
+    TEST_ASSERT_TRUE(gfx.text.find("CONNECTED") != std::string::npos);
+    TEST_ASSERT_TRUE(gfx.text.find("Keep the browser tab open") != std::string::npos);
+    ui.setLocale("ru");
+    screens::rapidReaderUsbStorage(ui, "Mounted read/write");
+    TEST_ASSERT_TRUE(gfx.text.find("ЧТЕНИЕ И ЗАПИСЬ") != std::string::npos);
+    screens::rapidReaderUsbStorage(ui, "Ejected");
+    TEST_ASSERT_TRUE(gfx.text.find("ДИСК ИЗВЛЕЧЁН") != std::string::npos);
+}
+
+void test_product_status_messages_and_transfer_progress_are_bounded() {
+    for (const auto locale : {"ru", "en"})
+        for (size_t i = 0; i < static_cast<size_t>(product::Text::Count); ++i)
+            TEST_ASSERT_FALSE(product::text(static_cast<product::Text>(i), locale).empty());
+    TEST_ASSERT_TRUE(product::text(product::Text::Connected) == "Подключено");
+    companion::serial::TransferStatus transfer;
+    TEST_ASSERT_EQUAL_INT(-1, transfer.percentage());
+    transfer.totalBytes = 256ULL * 1024 * 1024;
+    TEST_ASSERT_EQUAL_INT(0, transfer.percentage());
+    transfer.completedBytes = transfer.totalBytes / 2;
+    TEST_ASSERT_EQUAL_INT(50, transfer.percentage());
+    transfer.completedBytes = UINT64_MAX;
+    TEST_ASSERT_EQUAL_INT(100, transfer.percentage());
+}
+
+void test_tutorial_first_boot_completion_and_interrupted_restart() {
+    using product::TutorialAction;
+    product::Tutorial tutorial;
+    tutorial.begin(0);
+    TEST_ASSERT_TRUE(tutorial.active());
+    TEST_ASSERT_FALSE(tutorial.apply(TutorialAction::Previous));
+    TEST_ASSERT_EQUAL_UINT8(0, tutorial.step());
+    TEST_ASSERT_FALSE(tutorial.apply(TutorialAction::Next));
+    TEST_ASSERT_EQUAL_UINT8(1, tutorial.step());
+    // An interrupted guide has no saved completion marker.
+    tutorial.begin(0);
+    TEST_ASSERT_TRUE(tutorial.active());
+    TEST_ASSERT_EQUAL_UINT8(0, tutorial.step());
+    for (uint8_t i = 1; i < product::Tutorial::kStepCount; ++i) {
+        TEST_ASSERT_FALSE(tutorial.apply(TutorialAction::Next));
+        TEST_ASSERT_TRUE(tutorial.active());
+        TEST_ASSERT_EQUAL_UINT8(i, tutorial.step());
+    }
+    TEST_ASSERT_TRUE(tutorial.apply(TutorialAction::Next));
+    TEST_ASSERT_FALSE(tutorial.active());
+    TEST_ASSERT_FALSE(tutorial.apply(TutorialAction::Next));
+    tutorial.begin(product::Tutorial::kVersion);
+    TEST_ASSERT_FALSE(tutorial.active());
+    tutorial.begin(product::Tutorial::kVersion + 1);
+    TEST_ASSERT_FALSE(tutorial.active());
+}
+
+void test_tutorial_skip_and_back_work_on_every_step() {
+    using product::TutorialAction;
+    for (uint8_t step = 0; step < product::Tutorial::kStepCount; ++step) {
+        product::Tutorial tutorial;
+        tutorial.begin(0);
+        for (uint8_t i = 0; i < step; ++i)
+            tutorial.apply(TutorialAction::Next);
+        tutorial.apply(TutorialAction::Previous);
+        TEST_ASSERT_EQUAL_UINT8(step == 0 ? 0 : step - 1, tutorial.step());
+        TEST_ASSERT_TRUE(tutorial.active());
+        TEST_ASSERT_TRUE(tutorial.apply(TutorialAction::Skip));
+        TEST_ASSERT_FALSE(tutorial.active());
+        TEST_ASSERT_FALSE(tutorial.apply(TutorialAction::Skip));
+        tutorial.begin(product::Tutorial::kVersion);
+        TEST_ASSERT_FALSE(tutorial.active());
+    }
+}
+
+void test_tutorial_touch_navigation_and_both_languages() {
+    using product::TutorialAction;
+    const std::array<std::array<const char*, 4>, 2> titles{{
+        {"КНИГИ НА УСТРОЙСТВЕ", "ЧТЕНИЕ И МЕНЮ", "СКОРОСТЬ И НАВИГАЦИЯ", "ЭКРАН ПОД ВАС"},
+        {"YOUR BOOKS", "READING AND MENUS", "SPEED AND NAVIGATION", "MAKE IT YOURS"},
+    }};
+    for (size_t locale = 0; locale < 2; ++locale) {
+        RecordingGfx gfx;
+        ui::Context ui(gfx);
+        ui.setTheme(testTheme());
+        ui.setLocale(locale == 0 ? "ru" : "en");
+        ui.setTouchSource({.surface = {640, 172}, .poll = &poll});
+        product::Tutorial tutorial;
+        tutorial.begin(0);
+        uint8_t completions = 0;
+        const auto draw = [&] {
+            if (tutorial.apply(screens::rapidReaderTutorial(ui, tutorial)))
+                ++completions;
+        };
+        draw();
+        tap(ui, 390, 146, 100, draw); // Back is disabled at the beginning.
+        TEST_ASSERT_EQUAL_UINT8(0, tutorial.step());
+        tap(ui, 260, 85, 300, draw); // Body taps do not advance the guide.
+        TEST_ASSERT_EQUAL_UINT8(0, tutorial.step());
+        for (uint8_t step = 0; step < product::Tutorial::kStepCount; ++step) {
+            // App renders the new page on the update following a released tap.
+            draw();
+            TEST_ASSERT_TRUE(gfx.text.find(titles[locale][step]) != std::string::npos);
+            TEST_ASSERT_TRUE(gfx.text.find("0" + std::to_string(step + 1) + " / 04") != std::string::npos);
+            tap(ui, 540, 146, 500 + step * 200, draw);
+        }
+        TEST_ASSERT_EQUAL_UINT8(1, completions);
+        TEST_ASSERT_FALSE(tutorial.active());
+        TEST_ASSERT_TRUE(gfx.text.find(locale == 0 ? "НАЧАТЬ" : "START READING") != std::string::npos);
+        TEST_ASSERT_TRUE(gfx.text.find("Фокус") == std::string::npos);
+        TEST_ASSERT_TRUE(gfx.text.find("Wi-Fi") == std::string::npos);
+        // A fresh session can also be skipped immediately with its touch button.
+        tutorial.begin(0);
+        draw();
+        tap(ui, 80, 146, 1500, draw);
+        TEST_ASSERT_EQUAL_UINT8(2, completions);
+        TEST_ASSERT_FALSE(tutorial.active());
+    }
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_languages_are_complete_and_available_without_sd);
@@ -248,5 +396,11 @@ int main() {
     RUN_TEST(test_modern_ui_font_and_case_conversion_support_russian);
     RUN_TEST(test_brightness_capture_clamps_a_drag_outside_the_panel);
     RUN_TEST(test_library_and_chapter_pages_keep_every_item_accessible);
+    RUN_TEST(test_boot_keeps_branding_over_low_level_storage_statuses);
+    RUN_TEST(test_usb_screens_follow_the_device_language_and_real_transfer_counts);
+    RUN_TEST(test_product_status_messages_and_transfer_progress_are_bounded);
+    RUN_TEST(test_tutorial_first_boot_completion_and_interrupted_restart);
+    RUN_TEST(test_tutorial_skip_and_back_work_on_every_step);
+    RUN_TEST(test_tutorial_touch_navigation_and_both_languages);
     return UNITY_END();
 }

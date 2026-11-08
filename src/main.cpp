@@ -8,7 +8,22 @@
 App app;
 
 void setup() {
+#ifdef RAPID_READER
+    Board::Display::setBacklight(false);
+#endif
     Serial.begin(115200);
+#ifdef RAPID_READER
+    delay(50);
+    Board::System::begin();
+    if (!app.beginDisplay()) {
+        Logger::begin();
+        ESP_LOGE("main", "early display initialization failed; restarting");
+        delay(1000);
+        ESP.restart();
+        return;
+    }
+    Logger::begin();
+#else
     Logger::begin();
     delay(50);
     Board::System::begin();
@@ -16,6 +31,7 @@ void setup() {
     while (!Serial && millis() - serialWaitStart < 2000) {
         delay(10);
     }
+#endif
     Board::System::logStartupDiagnostics();
     if (!settings::initializeNvsEncryption()) {
         ESP_LOGE("main", "encrypted NVS initialization failed; restarting");

@@ -265,6 +265,10 @@ namespace ui {
             return touchActive_ && contains(rect, touchStartX_, touchStartY_)
                 && contains(rect, touchLastX_, touchLastY_);
         }
+        void setBooting(bool active) { booting_ = active; }
+        bool booting() const { return booting_; }
+        void setBootMessage(std::string_view message) { bootMessage_ = message; }
+        std::string_view bootMessage() const { return bootMessage_; }
         void beginFrame(uint8_t screen);
         void endFrame();
         void invalidate();
@@ -460,6 +464,8 @@ namespace ui {
         BidiText::Line bidiLine_;
         std::vector<BidiText::Codepoint> bidiCodepoints_;
         std::string locale_{Localization::kDefaultLocale};
+        bool booting_ = false;
+        std::string_view bootMessage_;
         TouchSource touchSource_{};
         Touch touchEvent_{};
         Orientation touchOrientation_ = Orientation::Portrait;

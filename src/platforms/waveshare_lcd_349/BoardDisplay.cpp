@@ -85,6 +85,9 @@ namespace {
 namespace Board::Display {
 
     bool begin() {
+#ifdef RAPID_READER
+        gBacklight = false;
+#endif
         setBacklightPower(true);
 
         pinMode(WaveshareLcd349::DisplayWiring::kBacklightPin, OUTPUT);

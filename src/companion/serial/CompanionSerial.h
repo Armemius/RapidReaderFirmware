@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <FS.h>
 
+#include <atomic>
 #include <cstdint>
 #include <map>
 #include <optional>
@@ -12,6 +13,7 @@
 #include <improv.h>
 
 #include "companion/serial/CompanionSerialProtocol.h"
+#include "companion/serial/CompanionTransferStatus.h"
 
 class CompanionApi;
 class UsbMassStorageManager;
@@ -27,6 +29,7 @@ public:
     void update(uint32_t nowMs);
     void close();
     [[nodiscard]] bool active() const noexcept;
+    [[nodiscard]] companion::serial::TransferStatus transferStatus() const;
 
 private:
     struct RequestMetadata {
@@ -88,7 +91,8 @@ private:
     uint32_t improvLastByteMs_ = 0;
     uint32_t provisioningDeadlineMs_ = 0;
     improv::State improvState_ = improv::STATE_AUTHORIZED;
-    bool active_ = false;
+    std::atomic<bool> active_{false};
     bool writeFailed_ = false;
     bool requestSpooled_ = false;
+    bool processing_ = false;
 };

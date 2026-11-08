@@ -24,6 +24,7 @@
 #include "storage/migration/Migration.h"
 #include "focus/FocusTimers.h"
 #include "ui/Ui.h"
+#include "companion/serial/CompanionTransferStatus.h"
 #include "ui/screens/LibraryScreen.h"
 #include "ui/screens/ReaderScreen.h"
 #include "ui/screens/Screens.h"
@@ -49,7 +50,7 @@ public:
     bool begin();
     void end();
     [[nodiscard]] bool active() const;
-    void renderStatus(bool usbConnected);
+    void renderStatus(bool usbConnected, const companion::serial::TransferStatus& transfer = {});
     [[nodiscard]] std::string_view statusLine1() const;
     [[nodiscard]] std::string_view statusLine2() const;
 

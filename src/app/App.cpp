@@ -21,7 +21,10 @@
 #include "update/OtaUpdater.h"
 #ifdef RAPID_READER
 #include "product/RapidReader.h"
+#include "product/RapidReaderText.h"
+#include "ui/RapidReaderConnection.h"
 #include "ui/RapidReaderBrand.h"
+#include "ui/RapidReaderTutorial.h"
 #endif
 
 namespace {
@@ -53,6 +56,27 @@ namespace {
     }
 } // namespace
 
+#ifdef RAPID_READER
+bool App::beginDisplay() {
+    if (displayReady_)
+        return true;
+    if (!Board::Display::begin()) {
+        ESP_LOGE("app", "display init failed");
+        return false;
+    }
+    immediateUi_.setOrientation(Board::Display::defaultUiOrientation());
+    immediateUi_.setTheme(interfaceScreen_.themes.resolve(settingsStore_.settings().interface.selectedThemeId));
+    immediateUi_.setLocale(product::kDefaultLocale);
+    immediateUi_.setBooting(true);
+    Board::Display::setBrightness(settings::InterfaceSettings{}.brightnessPercent);
+    screens::rapidReaderBoot(immediateUi_, product::text(product::Text::Starting));
+    // Only illuminate the panel after the branded frame has been flushed.
+    Board::Display::setBacklight(true);
+    displayReady_ = true;
+    return true;
+}
+#endif
+
 void App::begin() {
     prefs_.begin(settings::kStateNvsNamespace);
     storage_.setStatusCallback(&App::renderStorageStatus, this);
@@ -60,22 +84,24 @@ void App::begin() {
     lastActivityMs_ = bootMs_;
     statusUntilMs_ = bootMs_ + kBootSplashMs;
 
+#ifdef RAPID_READER
+    if (!beginDisplay())
+        return;
+#else
     if (!Board::Display::begin()) {
         ESP_LOGE("app", "display init failed");
     }
     immediateUi_.setOrientation(Board::Display::defaultUiOrientation());
     immediateUi_.setTheme(interfaceScreen_.themes.resolve(settingsStore_.settings().interface.selectedThemeId));
-#ifdef RAPID_READER
-    immediateUi_.setLocale(product::kDefaultLocale);
-    Board::Display::setBrightness(settings::InterfaceSettings{}.brightnessPercent);
-    screens::rapidReaderBoot(immediateUi_);
-#else
     screens::status(immediateUi_, immediateUi_.text(UiText::Ready));
 #endif
     if (!Input::begin())
         ESP_LOGE("input", "startup failed");
     immediateUi_.setTouchSource({.surface = Board::Input::touchSurface(), .poll = &Input::pollTouch});
 
+#ifdef RAPID_READER
+    screens::rapidReaderBoot(immediateUi_, product::text(product::Text::LibrarySetup, immediateUi_.locale()));
+#endif
     storage_.begin();
     Logger::startupCheckpoint("storage");
     fs::FS* filesystem = storage_.mounted() ? &Board::Storage::filesystem() : nullptr;
@@ -88,6 +114,9 @@ void App::begin() {
                        : locales::scanInstalled(*filesystem, static_cast<size_t>(UiText::Count));
     ESP_LOGI("languages", "catalog ready installed=%u", static_cast<unsigned>(localeCatalog_.size()));
     Logger::startupCheckpoint("locale_catalog");
+#ifdef RAPID_READER
+    screens::rapidReaderBoot(immediateUi_, product::text(product::Text::DisplaySetup, immediateUi_.locale()));
+#endif
     readerScreen_.fonts.loadFromSd();
     Logger::startupCheckpoint("fonts");
     Logger::checkpoint("ui_locale");
@@ -102,12 +131,21 @@ void App::begin() {
     else
         focusScreen_.begin();
 #endif
+#ifdef RAPID_READER
+    screens::rapidReaderBoot(immediateUi_, product::text(product::Text::ReaderSetup, immediateUi_.locale()));
+#endif
     readerScreen_.loadInitialBook(immediateUi_, storage_, prefs_, bootMs_);
     Logger::startupCheckpoint("book");
     libraryScreen_.invalidate();
 #ifdef RAPID_READER
-    screens::rapidReaderBoot(immediateUi_);
+    screens::rapidReaderBoot(immediateUi_, product::text(product::Text::Ready, immediateUi_.locale()));
+    immediateUi_.setBooting(false);
     statusUntilMs_ = millis() + kBootSplashMs;
+    tutorial_.begin(prefs_.getUChar(product::Tutorial::kPreferenceKey, 0));
+    if (tutorial_.active()) {
+        ReadingLoop::pause(readerScreen_.session);
+        statusDestination_ = screens::Screen::Tutorial;
+    }
 #endif
     ESP_LOGI("startup", "ready");
 }
@@ -158,12 +196,19 @@ void App::update(uint32_t nowMs) {
     }
 
     if (companionApi_.active() || serialCompanion_.active()) {
-        companionApi_.renderStatus(serialCompanion_.active());
+        companionApi_.renderStatus(serialCompanion_.active(), serialCompanion_.transferStatus());
         settingsStore_.update(nowMs);
         Board::Power::updateBattery(battery_, nowMs);
         return;
     }
 
+#ifdef RAPID_READER
+    if (screen_ == screens::Screen::Tutorial) {
+        Board::Power::updateBattery(battery_, nowMs);
+        renderScreen(nowMs);
+        return;
+    }
+#endif
     if (!usbTransfer_.active())
         settingsStore_.update(nowMs);
 
@@ -187,10 +232,14 @@ void App::update(uint32_t nowMs) {
 
 void App::renderScreen(uint32_t nowMs) {
     if (serialCompanion_.active()) {
-        companionApi_.renderStatus(true);
+        companionApi_.renderStatus(true, serialCompanion_.transferStatus());
         return;
     }
 #ifdef RAPID_READER
+    if (screen_ == screens::Screen::Tutorial) {
+        handleTutorialAction(screens::rapidReaderTutorial(immediateUi_, tutorial_), nowMs);
+        return;
+    }
     switch (screen_) {
     case screens::Screen::ReadingSettings:
     case screens::Screen::PacingSettings:
@@ -242,7 +291,11 @@ void App::renderScreen(uint32_t nowMs) {
         return;
     }
     case screens::Screen::Usb:
+#ifdef RAPID_READER
+        screens::rapidReaderUsbStorage(immediateUi_, usbTransfer_.statusMessage());
+#else
         screens::status(immediateUi_, "USB", usbTransfer_.statusMessage(), immediateUi_.text(UiText::HoldPowerToExit));
+#endif
         return;
     case screens::Screen::Standby:
         standbyScreen_.draw(immediateUi_);
@@ -472,6 +525,17 @@ void App::handleInput(Input::ActionMask actions, uint32_t nowMs) {
         exitUsbTransfer(screens::Screen::Read);
         return;
     }
+#ifdef RAPID_READER
+    if (screen_ == screens::Screen::Tutorial) {
+        if (Input::hasAction(actions, Input::ActionPowerOff))
+            powerOff(nowMs);
+        else if (Input::hasAction(actions, Input::ActionSelect) || Input::hasAction(actions, Input::ActionPlayPause))
+            handleTutorialAction(product::TutorialAction::Next, nowMs);
+        else if (Input::hasAction(actions, Input::ActionBack) || Input::hasAction(actions, Input::ActionOpenMenu))
+            handleTutorialAction(product::TutorialAction::Previous, nowMs);
+        return;
+    }
+#endif
     if (Input::hasAction(actions, Input::ActionOpenMenu)) {
         if (screen_ == screens::Screen::Reader) {
             ReadingProgress::save(readerScreen_.session, prefs_, true, nowMs);
@@ -555,6 +619,20 @@ void App::handleInput(Input::ActionMask actions, uint32_t nowMs) {
         }
     }
 }
+
+#ifdef RAPID_READER
+void App::handleTutorialAction(product::TutorialAction action, uint32_t nowMs) {
+    if (!tutorial_.apply(action))
+        return;
+    if (prefs_.putUChar(product::Tutorial::kPreferenceKey, product::Tutorial::kVersion) != sizeof(uint8_t))
+        ESP_LOGW("tutorial", "completion could not be saved; tutorial will appear on next boot");
+    // Finish at the simple menu, even when no book or SD card is present.
+    screen_ = screens::Screen::Read;
+    statusDestination_ = screens::Screen::Reader;
+    lastActivityMs_ = nowMs;
+    renderScreen(nowMs);
+}
+#endif
 
 void App::handleTouch(uint32_t nowMs) {
     if (serialCompanion_.active())
@@ -1064,6 +1142,12 @@ void App::renderStorageStatus(void* context, const char* title, const char* line
         app.enqueueJobUpdate(update);
         return;
     }
+#ifdef RAPID_READER
+    // Serial operations already show a branded processing screen. Storage callbacks
+    // may run while the API lock is held, so leave that frame intact here.
+    if (app.serialCompanion_.active())
+        return;
+#endif
     screens::status(app.immediateUi_, title == nullptr ? "SD" : title, line1 == nullptr ? "" : line1,
                     line2 == nullptr ? "" : line2, progressPercent);
 }

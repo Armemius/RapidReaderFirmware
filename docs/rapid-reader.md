@@ -27,6 +27,25 @@ Custom RSVP Nano firmware for **Waveshare ESP32-S3 Touch LCD 3.49 Rev2**
 - USB serial transfers remain compatible with the existing companion/converter.
   Books still require a FAT32 microSD card; embedded language assets do not
   replace book storage.
+- The application initializes the display before serial waiting, diagnostics and
+  encrypted NVS setup. The backlight stays off until the first RR frame is ready.
+  The logo stays visible through library/display/reader preparation, with localized
+  phase labels, then shows Ready before opening the reader. The ROM and second-stage
+  bootloader still execute before this application-controlled display initialization.
+- A four-step first-boot guide covers USB/microSD books, BOOT/PWR controls,
+  paused-reading gestures, and display settings. It follows the device language
+  (Russian by default) and uses the same RR logo, panels and signal-red progress
+  marks. Use Back/Next or BOOT (next) / a short PWR press (back); Skip is available
+  on every step. Finishing opens the reading menu. Reading stays paused and the
+  guide also works without a book or SD card. Completing or skipping saves a
+  versioned flag in internal NVS, so subsequent boots go straight to the reader.
+  An interrupted guide is shown again; erasing NVS resets it. Display Settings
+  keeps its existing limited set of controls.
+- On-device USB companion and memory-card screens use the same RR branding.
+  Connection, reception, response transmission and processing messages follow the
+  selected device language. Russian is the default; file names are preserved.
+  Transfer percentages use actual received/sent byte counts. Browser UI and the
+  serial handshake/frame format are unchanged.
 
 The original board environments remain available for upstream development.
 Product behavior is enabled only with `RAPID_READER=1`.
@@ -50,6 +69,28 @@ Rendered with the production UI and Arduino_GFX rasterizer at 640×172.
 ![Loading screen](images/rapid-reader/loading-ru.png)
 
 ![Long Russian title](images/rapid-reader/long-title-ru.png)
+
+![Early application startup](images/rapid-reader/startup-ru.png)
+
+![Russian USB companion](images/rapid-reader/usb-ru.png)
+
+![USB upload progress](images/rapid-reader/usb-upload-ru.png)
+
+![English USB companion](images/rapid-reader/usb-en.png)
+
+![Russian USB memory-card mode](images/rapid-reader/usb-storage-ru.png)
+
+![First-boot books guide](images/rapid-reader/tutorial-books-ru.png)
+
+![First-boot reading controls](images/rapid-reader/tutorial-controls-ru.png)
+
+![First-boot gestures](images/rapid-reader/tutorial-gestures-ru.png)
+
+![First-boot display settings](images/rapid-reader/tutorial-display-ru.png)
+
+![English first-boot guide](images/rapid-reader/tutorial-books-en.png)
+
+![English guide completion](images/rapid-reader/tutorial-display-en.png)
 
 ## Build and install
 
@@ -94,18 +135,26 @@ The embedded UI font can be regenerated with `tools/generate_rapid_ui_font.py`
 
 ## Validation of this revision
 
-Nine host product tests passed:
+Fifteen host product tests passed:
 embedded translations, the full Russian alphabet including Ё/ё in every reading
 font size, imported settings defaults, repeated language switching, navigation
 and boot branding, the UI font and Cyrillic case conversion, brightness pointer
 capture, and library/chapter paging. These checks use the native Arduino shims,
-system HarfBuzz and the pinned SheenBidi source. The eight previews above use the
-production UI and Arduino_GFX rasterizer at the physical display resolution.
+system HarfBuzz and the pinned SheenBidi source. The additional startup/USB checks
+cover persistent logo rendering during low-level storage callbacks, product
+translations, Russian/English USB screens and bounded transfer progress.
+Tutorial checks cover first-boot detection, interrupted restarts, completion and
+skip markers, bounded back/next navigation and touch controls in both languages.
+Three serial-protocol checks also pass, covering fragmentation, CRC recovery and
+UTF-8 response chunks. The nineteen previews above use the production UI and
+Arduino_GFX rasterizer at the physical display resolution.
 
-The ESP32 build was stopped during the 286 MB Arduino SDK-library download on
-the development machine. No flashable binary or on-device validation was
-produced in this session; run the build command or manual workflow above to
-produce the firmware images.
+The Rev2 firmware compiled successfully with PlatformIO 6.2.0, Arduino ESP32
+3.3.9 (ESP-IDF 5.5.4) and Xtensa GCC 14.2.0. This revision rebuilt in approximately
+four minutes with dependencies already installed. The release package contains
+the merged installer and application-only OTA image, with SHA-256 checksums.
+Boot timing, backlight behavior and USB transfers still require validation on
+physical Rev2 hardware; host tests and rendered previews do not measure them.
 
 ## Attribution
 

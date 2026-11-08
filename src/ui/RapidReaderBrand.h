@@ -3,5 +3,6 @@
 #include "ui/screens/Screens.h"
 
 namespace screens {
-    void rapidReaderBoot(ui::Context& ui);
+    void rapidReaderLogo(ui::Context& ui, ui::Rect rect);
+    void rapidReaderBoot(ui::Context& ui, std::string_view phase = {});
 } // namespace screens

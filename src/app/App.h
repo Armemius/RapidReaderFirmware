@@ -25,10 +25,16 @@
 #include "ui/screens/StandbyScreen.h"
 #include "update/OtaUpdater.h"
 #include "usb/UsbMassStorageManager.h"
+#ifdef RAPID_READER
+#include "product/RapidReaderTutorial.h"
+#endif
 
 class App {
 public:
     void begin();
+#ifdef RAPID_READER
+    bool beginDisplay();
+#endif
     void update(uint32_t nowMs);
 
 private:
@@ -116,4 +122,9 @@ private:
     uint32_t standbyEnteredMs_ = 0;
     uint32_t statusUntilMs_ = 0;
     bool restartAfterStatus_ = false;
+#ifdef RAPID_READER
+    bool displayReady_ = false;
+    product::Tutorial tutorial_;
+    void handleTutorialAction(product::TutorialAction action, uint32_t nowMs);
+#endif
 };

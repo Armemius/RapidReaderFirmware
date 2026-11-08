@@ -3,6 +3,9 @@
 #include <filesystem>
 
 #include "ui/RapidReaderBrand.h"
+#include "ui/RapidReaderConnection.h"
+#include "ui/RapidReaderTutorial.h"
+#include "product/RapidReaderText.h"
 #include "ui/screens/ScreenCommon.h"
 #include "ui/screens/LibraryScreen.h"
 #include "ui/screens/ChaptersScreen.h"
@@ -26,11 +29,38 @@ int main(int argc, char** argv) {
     settings::InterfaceSettings config;
     screens::InterfaceScreen display;
     constexpr std::array<uint32_t, 5> standby{0, 60000, 300000, 900000, 1800000};
-    for (const auto name : {"boot", "menu-ru", "settings-ru", "settings-en", "library-ru", "chapters-ru", "loading-ru", "long-title-ru"}) {
+    for (const auto name : {"boot", "menu-ru", "settings-ru", "settings-en", "library-ru", "chapters-ru", "loading-ru", "long-title-ru", "startup-ru", "usb-ru", "usb-upload-ru", "usb-en", "usb-storage-ru", "tutorial-books-ru", "tutorial-controls-ru", "tutorial-gestures-ru", "tutorial-display-ru", "tutorial-books-en", "tutorial-display-en"}) {
         ui.invalidate();
         auto screen = screens::Screen::Read;
-        if (std::string_view{name} == "boot") {
+        if (std::string_view{name}.starts_with("tutorial-")) {
+            ui.setLocale(std::string_view{name}.ends_with("-en") ? "en" : "ru");
+            product::Tutorial tutorial;
+            tutorial.begin(0);
+            const std::string_view scene{name};
+            const int step = scene.find("controls") != scene.npos ? 1
+                           : scene.find("gestures") != scene.npos ? 2
+                           : scene.find("display") != scene.npos ? 3 : 0;
+            for (int i = 0; i < step; ++i)
+                tutorial.apply(product::TutorialAction::Next);
+            screens::rapidReaderTutorial(ui, tutorial);
+        } else if (std::string_view{name} == "boot") {
             screens::rapidReaderBoot(ui);
+        } else if (std::string_view{name} == "startup-ru") {
+            ui.setLocale("ru");
+            ui.setBooting(true);
+            screens::rapidReaderBoot(ui, product::text(product::Text::LibrarySetup));
+            screens::status(ui, "SD", "Mounting card", "Scanning books", 5);
+            ui.setBooting(false);
+        } else if (std::string_view{name} == "usb-ru" || std::string_view{name} == "usb-en") {
+            ui.setLocale(std::string_view{name} == "usb-en" ? "en" : "ru");
+            screens::rapidReaderUsb(ui);
+        } else if (std::string_view{name} == "usb-upload-ru") {
+            ui.setLocale("ru");
+            screens::rapidReaderUsb(ui, {.activity = companion::serial::TransferActivity::Receiving,
+                .completedBytes = 64, .totalBytes = 100, .name = "Война и мир.rsvp"});
+        } else if (std::string_view{name} == "usb-storage-ru") {
+            ui.setLocale("ru");
+            screens::rapidReaderUsbStorage(ui, "Mounted read/write");
         } else if (std::string_view{name} == "loading-ru") {
             ui.setLocale("ru");
             screens::status(ui, "Загрузка книги", "Война и мир", "Лев Толстой", 64);

@@ -51,6 +51,9 @@ namespace screens {
         Usb,
         Status,
         Standby,
+#ifdef RAPID_READER
+        Tutorial,
+#endif
     };
 
     enum class Action : uint8_t {
