@@ -5,6 +5,8 @@
 #include "logging/Logger.h"
 #include "storage/fs/StoragePaths.h"
 #include "library/IndexedBook.h"
+#include "library/StorageManager.h"
+#include "library/ReadingProgress.h"
 #include "ui/screens/ScreenCommon.h"
 
 namespace screens {

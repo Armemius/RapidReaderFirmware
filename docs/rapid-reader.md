@@ -10,11 +10,15 @@ Custom RSVP Nano firmware for **Waveshare ESP32-S3 Touch LCD 3.49 Rev2**
   Both translations and the Cyrillic UI/reading fonts are embedded in firmware;
   no language pack or network connection is needed.
 - The boot screen uses the RR monogram from `RSVPConverter/public/favicon.svg`.
-  The default theme follows that project's signal-red, dark-plum and warm-white
-  palette from `src/promo/promo.css`.
+  The SIGNALIS-inspired interface combines that brand's signal red with charcoal
+  panels, pale text, fine borders, square controls and numbered top navigation.
+  Rapid Mono, derived from IBM Plex Mono, supplies native-size Latin and Cyrillic
+  interface text. Book typography remains separate.
 - The menu contains reading and Settings. Reading retains resume, chapters and
   library. Settings directly contains brightness, theme, language, standby timer
   and screensaver, formerly under Display.
+- Library and Chapters use large list rows with previous/next buttons and
+  horizontal swipes. Progress, authors and long Cyrillic titles remain readable.
 - Device, Focus, network/update menus, reading/pacing/layout configuration and
   per-book font controls are hidden. Hidden reading preferences reset to their
   upstream defaults on load and on settings edits. Reading speed stays adjustable
@@ -38,6 +42,14 @@ Rendered with the production UI and Arduino_GFX rasterizer at 640×172.
 ![Russian Settings](images/rapid-reader/settings-ru.png)
 
 ![English Settings](images/rapid-reader/settings-en.png)
+
+![Russian library](images/rapid-reader/library-ru.png)
+
+![Russian chapter navigation](images/rapid-reader/chapters-ru.png)
+
+![Loading screen](images/rapid-reader/loading-ru.png)
+
+![Long Russian title](images/rapid-reader/long-title-ru.png)
 
 ## Build and install
 
@@ -77,6 +89,23 @@ python localization/generate_localization.py --check
 ```
 
 The screen preview renderer is `test/native_rapid_reader_preview/run.py`.
+The embedded UI font can be regenerated with `tools/generate_rapid_ui_font.py`
+(requires `freetype-py` and `fonttools`); `--check` verifies the committed font.
+
+## Validation of this revision
+
+Nine host product tests passed:
+embedded translations, the full Russian alphabet including Ё/ё in every reading
+font size, imported settings defaults, repeated language switching, navigation
+and boot branding, the UI font and Cyrillic case conversion, brightness pointer
+capture, and library/chapter paging. These checks use the native Arduino shims,
+system HarfBuzz and the pinned SheenBidi source. The eight previews above use the
+production UI and Arduino_GFX rasterizer at the physical display resolution.
+
+The ESP32 build was stopped during the 286 MB Arduino SDK-library download on
+the development machine. No flashable binary or on-device validation was
+produced in this session; run the build command or manual workflow above to
+produce the firmware images.
 
 ## Attribution
 

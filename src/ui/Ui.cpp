@@ -8,6 +8,9 @@
 #endif
 
 #include "fonts/UiFont6x9.h"
+#ifdef RAPID_READER
+#include "fonts/RapidMono13.h"
+#endif
 #include "text/UnicodeText.h"
 #include "text/Utf8Text.h"
 
@@ -17,8 +20,13 @@ namespace ui {
         constexpr uint16_t kFallbackBlack = 0x0000;
         constexpr uint16_t kFallbackWhite = 0xFFFF;
 
+#ifdef RAPID_READER
+        constexpr uint8_t kUiFontCellWidth = fonts::kRapidUiCellWidth;
+        constexpr uint8_t kUiFontHeight = fonts::kRapidUiHeight;
+#else
         constexpr uint8_t kUiFontCellWidth = 6;
         constexpr uint8_t kUiFontHeight = 9;
+#endif
         constexpr uint32_t kBuiltInUiScripts = UnicodeText::ScriptLatin | UnicodeText::ScriptCyrillic;
         constexpr uint8_t kTapCancelOutsideSamples = 2;
 
@@ -609,11 +617,22 @@ namespace ui {
         const size_t slot = nextSlot_;
         const Touch* event = touch();
         const bool labeled = !label.empty();
+#ifdef RAPID_READER
+        const int16_t visualHeight = rect.h;
+        const int16_t trackInset = labeled ? 14 : 7;
+#else
         const int16_t visualHeight = labeled ? std::min<int16_t>(50, rect.h) : rect.h;
         const int16_t trackInset = labeled ? 8 : (displayWriteAlignment() == 2 ? 7 : 0);
+#endif
         const Rect visual{rect.x, static_cast<int16_t>(rect.y + (rect.h - visualHeight) / 2), rect.w, visualHeight};
         const Rect track{static_cast<int16_t>(visual.x + trackInset),
-                         static_cast<int16_t>(visual.y + (labeled ? visual.h - 8 : visual.h / 2 - 1)),
+                         static_cast<int16_t>(visual.y + (labeled ? visual.h -
+#ifdef RAPID_READER
+                             20
+#else
+                             8
+#endif
+                             : visual.h / 2 - 1)),
                          static_cast<int16_t>(visual.w - 2 * trackInset), 3};
         const bool started = event != nullptr && hasTouch(*event, TouchStart) && contains(rect, event->x, event->y);
         if (started && slot < kSlotCapacity) {
@@ -642,6 +661,27 @@ namespace ui {
         state = combine(state, static_cast<uint32_t>(step));
         state = combine(state, activeRole);
         if (claim(Kind::Slider, rect, state).changed) {
+#ifdef RAPID_READER
+            const auto labelText = prepareText({14, 6, static_cast<int16_t>(rect.w - 28), 22}, label, 1);
+            const auto number = std::to_string(displayedValue) + std::string{suffix};
+            const auto valueText = prepareText({14, 32, static_cast<int16_t>(rect.w - 28), 44}, number, 2);
+            paint(rect, [&](Arduino_GFX& output, Rect r) {
+                const int16_t dx = r.x - rect.x, dy = r.y - rect.y;
+                output.fillRect(r.x, r.y, r.w, r.h, color(labeled ? themes::Surface : themes::Background));
+                if (labeled) {
+                    output.drawRect(r.x, r.y, r.w, r.h, color(themes::Outline));
+                    drawText(output, labelText, color(themes::Muted), r.x, r.y);
+                    drawText(output, valueText, color(themes::Foreground), r.x, r.y);
+                }
+                const int16_t x = static_cast<int16_t>(track.x + dx);
+                const int16_t y = static_cast<int16_t>(track.y + dy);
+                const int16_t filled = maximum == minimum ? 0 :
+                    static_cast<int16_t>((track.w - 1) * static_cast<int32_t>(displayedValue - minimum) / (maximum - minimum));
+                output.fillRect(x, y, track.w, 2, color(themes::ProgressTrack));
+                output.fillRect(x, y, filled, 2, color(activeRole));
+                output.fillRect(x + filled - 2, y - 4, 5, 10, color(themes::Foreground));
+            });
+#else
             const Rect bounds = rect;
             TextLayout labelText, valueLayout;
             if (labeled) {
@@ -733,6 +773,7 @@ namespace ui {
                 output.fillCircle(knobX, trackCenterY, knobRadius, color(activeRole));
                 output.drawCircle(knobX, trackCenterY, knobRadius, color(ui::themes::ColorRole::OnAccent));
             });
+#endif
         }
 
         if (capturedSlot_ == slot && event != nullptr && hasTouch(*event, TouchRelease)) {
@@ -1291,7 +1332,12 @@ namespace ui {
         const size_t capacity = static_cast<size_t>(std::max<int16_t>(0, rect.w) / (cellWidth * size));
         if (capacity == 0)
             return;
-        const uint8_t* font = externalFont ? assets->font.data() : u8g2_font_rsvpnano_ui_6x9_tf;
+        const uint8_t* font = externalFont ? assets->font.data() :
+#ifdef RAPID_READER
+            fonts::RapidMono13;
+#else
+            u8g2_font_rsvpnano_ui_6x9_tf;
+#endif
         gfx_.setFont(font);
         gfx_.setUTF8Print(true);
         gfx_.setTextSize(size);

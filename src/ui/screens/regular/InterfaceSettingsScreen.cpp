@@ -1,4 +1,7 @@
 #include "ui/screens/ScreenCommon.h"
+#ifdef RAPID_READER
+#include "ui/RapidReaderUi.h"
+#endif
 
 #include "localization/LocaleCatalog.h"
 
@@ -24,6 +27,10 @@ namespace screens {
     bool InterfaceScreen::draw(ui::Context& ui, settings::InterfaceSettings& config,
                                std::span<const uint32_t> standbyDurations, void (*setBrightness)(uint8_t),
                                Screen& screen) {
+#ifdef RAPID_READER
+        navigationAction = rapid::navigation(ui, Screen::Settings, screen);
+        return rapid::display(ui, config, themes, standbyDurations, setBrightness);
+#else
         bool changed = false;
 #ifdef RAPID_READER
         navigationAction = detail::navigation(ui, Screen::Settings, screen);
@@ -112,6 +119,7 @@ namespace screens {
             changed = true;
         }
         return changed;
+#endif
     }
 
 } // namespace screens

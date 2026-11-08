@@ -80,22 +80,22 @@ namespace ui::themes {
 #ifdef RAPID_READER
         theme.definition.name = "RapidReader";
         theme.definition.colors = {
-            .background = rgb565(13, 9, 13),
-            .foreground = rgb565(255, 240, 237),
-            .muted = rgb565(180, 157, 163),
-            .subtle = rgb565(88, 63, 73),
-            .accent = rgb565(255, 48, 75),
-            .accentBar = rgb565(230, 36, 64),
-            .breakAccent = rgb565(180, 157, 163),
-            .onAccent = rgb565(255, 240, 237),
-            .surface = rgb565(20, 18, 23),
-            .surfaceMuted = rgb565(35, 25, 30),
-            .surfaceActive = rgb565(60, 22, 35),
-            .outline = rgb565(92, 49, 64),
-            .guide = rgb565(88, 63, 73),
-            .guideFocus = rgb565(255, 48, 75),
-            .phantom = rgb565(180, 157, 163),
-            .progressTrack = rgb565(64, 33, 46),
+            .background = rgb565(9, 12, 12),
+            .foreground = rgb565(222, 225, 215),
+            .muted = rgb565(146, 157, 153),
+            .subtle = rgb565(82, 96, 91),
+            .accent = rgb565(244, 57, 65),
+            .accentBar = rgb565(244, 57, 65),
+            .breakAccent = rgb565(146, 157, 153),
+            .onAccent = rgb565(222, 225, 215),
+            .surface = rgb565(16, 21, 21),
+            .surfaceMuted = rgb565(20, 27, 27),
+            .surfaceActive = rgb565(43, 23, 25),
+            .outline = rgb565(56, 69, 65),
+            .guide = rgb565(82, 96, 91),
+            .guideFocus = rgb565(244, 57, 65),
+            .phantom = rgb565(146, 157, 153),
+            .progressTrack = rgb565(49, 63, 59),
         };
 #endif
         return theme;

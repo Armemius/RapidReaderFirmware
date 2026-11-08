@@ -4,6 +4,11 @@ Custom firmware for **ESP32-S3 Touch LCD 3.49 Rev2**. Russian by default, Englis
 optional, RR boot branding and a simplified reading/display-settings interface.
 Design adapted from the supplied RapidReader / RSVPConverter project.
 
+The product UI uses a SIGNALIS-inspired terminal design with fine Cyrillic
+typography, compact top navigation, square panels and restrained red accents.
+
+![RapidReader interface](docs/images/rapid-reader/menu-ru.png)
+
 Build: `pio run -e rapid_reader_0_1_0` (also the default environment).
 See [build, installation and product behavior](docs/rapid-reader.md).
 Generate installable binaries with `python tools/package_rapid_reader.py`.

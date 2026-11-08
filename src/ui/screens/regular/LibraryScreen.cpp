@@ -9,9 +9,11 @@
 
 #include "logging/Logger.h"
 #include "storage/fs/StoragePaths.h"
-#include "library/IndexedBook.h"
 #include "text/AsciiText.h"
 #include "ui/screens/ScreenCommon.h"
+#ifdef RAPID_READER
+#include "ui/RapidReaderUi.h"
+#endif
 
 namespace screens {
     namespace {
@@ -136,6 +138,30 @@ namespace screens {
 
     Action LibraryScreen::draw(ui::Context& ui, const std::vector<LibraryItem>& items, uint32_t nowMs, Screen& screen) {
         (void)nowMs;
+#ifdef RAPID_READER
+        if (const auto action = rapid::navigation(ui, Screen::Library, screen); action != Action::None)
+            return action;
+        if (items.empty()) {
+            ui.label(rapid::content(ui), ui.text(UiText::NoLibraryItems), 1, ui::themes::Muted, ui::TextAlign::Center, 2);
+            return Action::None;
+        }
+        rapid::listPaging(ui, items.size(), productPage_, carouselGesture_);
+        for (size_t row = 0; row < 2; ++row) {
+            const size_t index = productPage_ * 2 + row;
+            if (index < items.size()) {
+                const auto& item = items[index];
+                const auto author = item.book ? std::string_view{item.book->author} : std::string_view{};
+                if (rapid::action(ui, rapid::listRow(ui, row), title(item), author,
+                                  std::to_string(item.progress) + "%", index == selectedIndex_)) {
+                    selectedIndex_ = index;
+                    return Action::OpenBook;
+                }
+            } else {
+                rapid::action(ui, rapid::listRow(ui, row), "", {}, {}, false, false);
+            }
+        }
+        return Action::None;
+#else
         Action result = Action::None;
         const ui::Touch* touch = ui.touch();
         selectedIndex_ = items.empty() ? 0 : std::min(selectedIndex_, items.size() - 1);
@@ -288,6 +314,7 @@ namespace screens {
                         ui.color(ui::themes::ColorRole::Accent), ui::TextAlign::Right);
         }
         return result;
+#endif
     }
 
     int32_t LibraryScreen::centeredOffset(const std::vector<LibraryItem>& items, size_t index,

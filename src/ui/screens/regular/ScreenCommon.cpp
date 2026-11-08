@@ -1,4 +1,7 @@
 #include "ui/screens/ScreenCommon.h"
+#ifdef RAPID_READER
+#include "ui/RapidReaderUi.h"
+#endif
 
 namespace screens::detail {
 
@@ -13,6 +16,9 @@ namespace screens::detail {
     } // namespace
 
     Action navigation(ui::Context& ui, Screen active, Screen& screen) {
+#ifdef RAPID_READER
+        return rapid::navigation(ui, active, screen);
+#else
         if (ui.width() < 620 || ui.height() < 150 || ui.height() > 240) {
             return Action::None;
         }
@@ -54,6 +60,7 @@ namespace screens::detail {
             return Action::PowerOff;
         }
         return Action::None;
+#endif
     }
 
     ui::Rect content(ui::Context& ui) {
@@ -61,11 +68,15 @@ namespace screens::detail {
     }
 
     ui::Rect tabContent(ui::Context& ui) {
+#ifdef RAPID_READER
+        return rapid::content(ui);
+#else
         if (ui.width() >= 620 && ui.height() >= 150 && ui.height() <= 240) {
             const int16_t x = static_cast<int16_t>(kRailWidth + kContentGap);
             return {x, 8, static_cast<int16_t>(ui.width() - x - kRightInset), static_cast<int16_t>(ui.height() - 16)};
         }
         return content(ui);
+#endif
     }
 
 } // namespace screens::detail

@@ -1,8 +1,14 @@
 #include "ui/screens/ScreenCommon.h"
+#ifdef RAPID_READER
+#include "ui/RapidReaderUi.h"
+#endif
 
 namespace screens {
 
     Action read(ui::Context& ui, std::string_view title, std::string_view author, uint8_t percent, Screen& screen) {
+#ifdef RAPID_READER
+        return rapid::read(ui, title, author, percent, screen);
+#else
         if (const Action action = detail::navigation(ui, Screen::Read, screen); action != Action::None) {
             return action;
         }
@@ -54,6 +60,7 @@ namespace screens {
             screen = Screen::Library;
         }
         return Action::None;
+#endif
     }
 
 } // namespace screens

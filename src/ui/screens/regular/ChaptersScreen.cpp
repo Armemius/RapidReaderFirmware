@@ -5,6 +5,9 @@
 #include <cstdlib>
 
 #include "ui/screens/ScreenCommon.h"
+#ifdef RAPID_READER
+#include "ui/RapidReaderUi.h"
+#endif
 
 namespace screens {
 
@@ -33,6 +36,38 @@ namespace screens {
     Action ChaptersScreen::draw(ui::Context& ui, std::span<const ChapterMarker> chapters, ReadingSession& reader,
                                 const settings::ReadingSettings& settings, uint32_t nowMs, Screen& screen) {
         (void) nowMs;
+#ifdef RAPID_READER
+        if (const auto action = rapid::navigation(ui, Screen::Chapters, screen); action != Action::None)
+            return action;
+        if (chapters.empty()) {
+            if (rapid::action(ui, rapid::content(ui), ui.text(UiText::StartReading))) {
+                ReadingLoop::seekTo(reader, 0);
+                return Action::Resume;
+            }
+            return Action::None;
+        }
+        const auto next = std::upper_bound(chapters.begin(), chapters.end(), reader.state.wordIndex,
+            [](size_t word, const ChapterMarker& chapter) { return word < chapter.wordIndex; });
+        const size_t readingIndex = next == chapters.begin() ? 0 : static_cast<size_t>(next - chapters.begin() - 1);
+        if (source_.data() != chapters.data() || source_.size() != chapters.size()) {
+            source_ = chapters;
+            productPage_ = readingIndex / 2;
+        }
+        rapid::listPaging(ui, chapters.size(), productPage_, carouselGesture_);
+        for (size_t row = 0; row < 2; ++row) {
+            const size_t index = productPage_ * 2 + row;
+            if (index < chapters.size()) {
+                if (rapid::action(ui, rapid::listRow(ui, row), chapters[index].title, {},
+                                  std::to_string(index + 1), index == readingIndex)) {
+                    ReadingLoop::seekTo(reader, chapters[index].wordIndex);
+                    return Action::Resume;
+                }
+            } else {
+                rapid::action(ui, rapid::listRow(ui, row), "", {}, {}, false, false);
+            }
+        }
+        return Action::None;
+#else
         if (const Action action = detail::navigation(ui, Screen::Chapters, screen); action != Action::None)
             return action;
 
@@ -194,6 +229,7 @@ namespace screens {
             }
         }
         return Action::None;
+#endif
     }
 
 } // namespace screens

@@ -508,6 +508,10 @@ namespace screens {
                      ui.locale() == "ru" ? " сл/мин" :
 #endif
                      " WPM") : "";
+#ifdef RAPID_READER
+            const int16_t speedY = std::min<int16_t>(ui.height() - 56, readingArea.y + readingArea.h - 16);
+            const auto speedText = ui.prepareText({0, speedY, ui.width(), 18}, overlay, 2, ui::TextAlign::Center);
+#endif
             background_ = ui.color(ui::themes::ColorRole::Background);
             activateFace(face_);
             text_.setTextColor(ui.color(ui::themes::ColorRole::Foreground),
@@ -707,6 +711,10 @@ namespace screens {
 
                 if (!vertical) {
                     readerLayout::drawArrows(ui, gfx, settings, reading, arrows, inkBottom - inkTop + 13, dx, dy);
+#ifdef RAPID_READER
+                    if (!overlay.empty())
+                        ui.drawText(gfx, speedText, ui.color(ui::themes::ColorRole::Accent), dx, dy);
+#else
                     gfx.setFont(static_cast<const GFXfont*>(nullptr));
                     gfx.setTextWrap(false);
                     gfx.setTextSize(2);
@@ -715,10 +723,11 @@ namespace screens {
                         gfx.setTextColor(ui.color(ui::themes::ColorRole::Accent));
                         const int16_t overlayY =
                             std::min<int16_t>(ui.height() - 56, readingArea.y + readingArea.h - 16);
-                        gfx.setCursor(static_cast<int16_t>((ui.width() - ui.textWidth(overlay, 2)) / 2 + dx),
+                        gfx.setCursor(static_cast<int16_t>((ui.width() - overlay.size() * 12) / 2 + dx),
                                       static_cast<int16_t>(overlayY + dy));
                         gfx.print(overlay.c_str());
                     }
+#endif
                 }
                 text_.setOutput(previousOutput);
             });
@@ -944,8 +953,10 @@ namespace screens {
                                                    : touch.x >= static_cast<uint16_t>(width_ - width));
                   }();
         if (footerTapped) {
+#ifndef RAPID_READER
             settings_.footerMetric = settings::cycleEnum(settings_.footerMetric);
             settingsStore.acceptChanges();
+#endif
             lastTapValid_ = false;
             return;
         }

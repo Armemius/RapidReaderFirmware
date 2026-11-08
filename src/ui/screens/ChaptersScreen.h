@@ -20,6 +20,9 @@ namespace screens {
     private:
         std::span<const ChapterMarker> source_;
         size_t centeredIndex_ = 0;
+#ifdef RAPID_READER
+        size_t productPage_ = 0;
+#endif
         size_t dragStartIndex_ = 0;
         int16_t offset_ = 0;
         uint16_t dragStartY_ = 0;

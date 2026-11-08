@@ -1,6 +1,7 @@
 #include "ui/RapidReaderBrand.h"
 
 #include "product/RapidReader.h"
+#include "ui/RapidReaderUi.h"
 #include <cstdlib>
 
 namespace screens {
@@ -52,15 +53,21 @@ namespace screens {
     void rapidReaderBoot(ui::Context& ui) {
         ui.invalidate();
         ui.beginFrame(static_cast<uint8_t>(Screen::Status));
-        const int16_t x = static_cast<int16_t>((ui.width() - 320) / 2);
-        const int16_t y = static_cast<int16_t>((ui.height() - 84) / 2);
+        const int16_t x = static_cast<int16_t>((ui.width() - 456) / 2);
+        const int16_t y = static_cast<int16_t>((ui.height() - 80) / 2);
         const ui::Rect mark{x, y, 72, 72};
         if (ui.redraw(mark, ui::Context::signature(product::kName)))
             ui.paint(mark, [](Arduino_GFX& output, ui::Rect rect) { logo(output, rect); });
-        ui.label({static_cast<int16_t>(x + 90), y, 234, 44}, "RapidReader", 3,
+        ui.label({static_cast<int16_t>(x + 96), y, 336, 42}, "RAPIDREADER", 2,
                  ui::themes::Foreground);
-        ui.label({static_cast<int16_t>(x + 90), static_cast<int16_t>(y + 48), 234, 24}, product::kVersion, 1,
+        ui.label({static_cast<int16_t>(x + 98), static_cast<int16_t>(y + 47), 336, 24}, product::kVersion, 1,
                  ui::themes::Muted);
+        const ui::Rect detail{24, static_cast<int16_t>(ui.height() - 24), static_cast<int16_t>(ui.width() - 48), 2};
+        if (ui.redraw(detail, 1))
+            ui.paint(detail, [&](Arduino_GFX& output, ui::Rect r) {
+                output.fillRect(r.x, r.y, r.w, r.h, ui.color(ui::themes::Outline));
+                output.fillRect(r.x, r.y, 64, r.h, ui.color(ui::themes::Accent));
+            });
         ui.endFrame();
     }
 } // namespace screens

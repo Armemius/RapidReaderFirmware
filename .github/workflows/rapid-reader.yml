@@ -25,9 +25,11 @@ jobs:
             ~/.platformio/platforms
           key: ${{ runner.os }}-rapid-reader-${{ hashFiles('platformio.ini', 'boards/**', 'tools/pio_*.py') }}
       - name: Install build tools
-        run: pip install 'platformio>=6.1.19'
+        run: pip install 'platformio>=6.1.19' freetype-py==2.5.1 fonttools==4.68.0
       - name: Check embedded translations
-        run: python localization/generate_localization.py --check
+        run: |
+          python localization/generate_localization.py --check
+          python tools/generate_rapid_ui_font.py --check
       - name: Test product language, settings and navigation
         run: pio test -e native_rapid_reader_test
       - name: Build and package Rev2 firmware

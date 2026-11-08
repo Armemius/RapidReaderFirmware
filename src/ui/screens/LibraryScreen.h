@@ -6,11 +6,12 @@
 #include <vector>
 
 #include "reader/ReadingLoop.h"
-#include "library/StorageManager.h"
-#include "library/IndexedBookStore.h"
-#include "library/ReadingProgress.h"
+#include "library/BookLibrary.h"
 #include "ui/screens/Screens.h"
 #include "ui/Layouts.h"
+
+class StorageManager;
+class IndexedBookStore;
 
 namespace screens {
 
@@ -47,6 +48,9 @@ namespace screens {
         int32_t startOffset_ = 0;
         int32_t offset_ = 0;
         size_t selectedIndex_ = 0;
+#ifdef RAPID_READER
+        size_t productPage_ = 0;
+#endif
         std::vector<LibraryItem> items_;
         bool itemsValid_ = false;
         ui::CarouselGesture carouselGesture_;

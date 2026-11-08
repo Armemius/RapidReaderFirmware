@@ -261,6 +261,10 @@ namespace ui {
         const Touch* touch() const {
             return touchPending_ ? &touchEvent_ : nullptr;
         }
+        bool pressedIn(Rect rect) const {
+            return touchActive_ && contains(rect, touchStartX_, touchStartY_)
+                && contains(rect, touchLastX_, touchLastY_);
+        }
         void beginFrame(uint8_t screen);
         void endFrame();
         void invalidate();
