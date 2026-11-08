@@ -19,6 +19,10 @@
 #include "library/ReadingProgress.h"
 #include "storage/migration/Migration.h"
 #include "update/OtaUpdater.h"
+#ifdef RAPID_READER
+#include "product/RapidReader.h"
+#include "ui/RapidReaderBrand.h"
+#endif
 
 namespace {
 
@@ -61,7 +65,13 @@ void App::begin() {
     }
     immediateUi_.setOrientation(Board::Display::defaultUiOrientation());
     immediateUi_.setTheme(interfaceScreen_.themes.resolve(settingsStore_.settings().interface.selectedThemeId));
+#ifdef RAPID_READER
+    immediateUi_.setLocale(product::kDefaultLocale);
+    Board::Display::setBrightness(settings::InterfaceSettings{}.brightnessPercent);
+    screens::rapidReaderBoot(immediateUi_);
+#else
     screens::status(immediateUi_, immediateUi_.text(UiText::Ready));
+#endif
     if (!Input::begin())
         ESP_LOGE("input", "startup failed");
     immediateUi_.setTouchSource({.surface = Board::Input::touchSurface(), .poll = &Input::pollTouch});
@@ -86,13 +96,19 @@ void App::begin() {
     Board::Power::updateBattery(battery_, bootMs_, true);
     readerScreen_.begin(interfaceScreen_.themes.resolve(settingsStore_.settings().interface.selectedThemeId));
     networkScreen_.begin(settingsStore_);
+#ifndef RAPID_READER
     if (storage_.mounted())
         focusScreen_.begin(Board::Storage::filesystem());
     else
         focusScreen_.begin();
+#endif
     readerScreen_.loadInitialBook(immediateUi_, storage_, prefs_, bootMs_);
     Logger::startupCheckpoint("book");
     libraryScreen_.invalidate();
+#ifdef RAPID_READER
+    screens::rapidReaderBoot(immediateUi_);
+    statusUntilMs_ = millis() + kBootSplashMs;
+#endif
     ESP_LOGI("startup", "ready");
 }
 
@@ -174,6 +190,30 @@ void App::renderScreen(uint32_t nowMs) {
         companionApi_.renderStatus(true);
         return;
     }
+#ifdef RAPID_READER
+    switch (screen_) {
+    case screens::Screen::ReadingSettings:
+    case screens::Screen::PacingSettings:
+    case screens::Screen::ReaderAppearance:
+    case screens::Screen::BookFonts:
+    case screens::Screen::NetworkSettings:
+    case screens::Screen::WifiScan:
+    case screens::Screen::WifiConnect:
+    case screens::Screen::NetworkEdit:
+    case screens::Screen::Device:
+    case screens::Screen::StorageEncryption:
+    case screens::Screen::Sync:
+    case screens::Screen::Ota:
+    case screens::Screen::FocusTimers:
+    case screens::Screen::FocusEditor:
+    case screens::Screen::FocusNameEdit:
+    case screens::Screen::FocusSession:
+        screen_ = screens::Screen::Read;
+        break;
+    default:
+        break;
+    }
+#endif
     const screens::Screen renderedScreen = screen_;
     screens::Action action = screens::Action::None;
     switch (screen_) {
@@ -224,10 +264,12 @@ void App::renderScreen(uint32_t nowMs) {
         action = chaptersScreen_.draw(immediateUi_, readerScreen_.session.metadata.chapters, readerScreen_.session,
                                       settingsStore_.settings().reading, nowMs, screen_);
         break;
+#ifndef RAPID_READER
     case screens::Screen::Settings:
         immediateUi_.beginFrame(static_cast<uint8_t>(screen_));
         action = screens::settings(immediateUi_, screen_);
         break;
+#endif
     case screens::Screen::ReadingSettings: {
         immediateUi_.beginFrame(static_cast<uint8_t>(screen_));
         const settings::ReadingMode mode = settingsStore_.settings().reading.mode;
@@ -247,6 +289,9 @@ void App::renderScreen(uint32_t nowMs) {
         }
         break;
     }
+#ifdef RAPID_READER
+    case screens::Screen::Settings:
+#endif
     case screens::Screen::InterfaceSettings: {
         immediateUi_.beginFrame(static_cast<uint8_t>(screen_));
         const std::string locale = settingsStore_.settings().interface.locale;
@@ -258,6 +303,9 @@ void App::renderScreen(uint32_t nowMs) {
             readerScreen_
                 .applyTheme(interfaceScreen_.themes.resolve(settingsStore_.settings().interface.selectedThemeId));
         }
+#ifdef RAPID_READER
+        action = interfaceScreen_.navigationAction;
+#endif
         break;
     }
     case screens::Screen::PacingSettings: {
@@ -849,6 +897,9 @@ void App::loadAppearanceSettings() {
         corrected = true;
     }
     if (current.interface.locale != Localization::kDefaultLocale
+#ifdef RAPID_READER
+        && !product::builtInLocale(current.interface.locale)
+#endif
         && !locales::findPackForLocale(localeCatalog_, current.interface.locale)) {
         current.interface.locale = Localization::kDefaultLocale;
         corrected = true;
@@ -863,6 +914,7 @@ void App::loadAppearanceSettings() {
 
 void App::reloadUiAssets() {
     locales::UiAssets assets;
+#ifndef RAPID_READER
     if (storage_.mounted()) {
         auto loaded =
             locales::loadUiAssets(Board::Storage::filesystem(), localeCatalog_,
@@ -872,6 +924,7 @@ void App::reloadUiAssets() {
         else
             ESP_LOGW("languages", "selected UI pack rejected: %s", loaded.error().c_str());
     }
+#endif
     immediateUi_.setLanguageAssets(std::move(assets));
 }
 

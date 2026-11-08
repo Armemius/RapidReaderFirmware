@@ -126,7 +126,11 @@ namespace settings {
 
     struct InterfaceSettings {
         BoundedValue<uint8_t, 5, 100, 5> brightnessPercent{70};
+#ifdef RAPID_READER
+        std::string locale = "ru";
+#else
         std::string locale = "en";
+#endif
         BoundedValue<uint8_t, 0, 4> standbyTimerIndex{1};
         standby::Kind screensaver = standby::Kind::life;
         std::string selectedThemeId = "default";

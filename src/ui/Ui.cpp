@@ -206,10 +206,14 @@ namespace ui {
     }
 
     std::string_view Context::text(UiText key) const {
+#ifdef RAPID_READER
+        return Localization::text(key, locale_);
+#else
         const std::string_view translated = languageAssets_.text(static_cast<size_t>(key));
         if (!translated.empty())
             return translated;
         return Localization::text(key);
+#endif
     }
 
     void Context::setTouchSource(TouchSource source) {

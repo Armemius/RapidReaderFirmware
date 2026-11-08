@@ -73,6 +73,9 @@ namespace screens {
     class InterfaceScreen {
     public:
         ThemeStore themes;
+#ifdef RAPID_READER
+        Action navigationAction = Action::None;
+#endif
 
         bool begin(ui::Context& ui, settings::InterfaceSettings& settings, const locales::Catalog& languages,
                    void (*setBrightness)(uint8_t));

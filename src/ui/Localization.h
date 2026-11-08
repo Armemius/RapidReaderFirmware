@@ -179,8 +179,12 @@ enum class UiText : uint8_t {
 
 namespace Localization {
 
+#ifdef RAPID_READER
+    inline constexpr std::string_view kDefaultLocale = "ru";
+#else
     inline constexpr std::string_view kDefaultLocale = "en";
+#endif
 
-    std::string_view text(UiText key);
+    std::string_view text(UiText key, std::string_view locale = kDefaultLocale);
 
 } // namespace Localization

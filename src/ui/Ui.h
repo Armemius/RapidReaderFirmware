@@ -250,6 +250,7 @@ namespace ui {
         void setLanguageCatalog(fs::FS* filesystem, const locales::Catalog* catalog, LanguageFontLoader fontLoader);
         void setLanguageAssets(locales::UiAssets assets);
         void setLocale(std::string_view locale);
+        std::string_view locale() const { return locale_; }
         void setOrientation(Orientation orientation);
         Orientation orientation() const {
             return touchOrientation_;

@@ -238,7 +238,11 @@ namespace ReadingProgress {
 
     std::string_view title(const ReadingSession& session, const StorageManager& storage) {
         if (!session.stored())
+#ifdef RAPID_READER
+            return "RapidReader";
+#else
             return "Demo";
+#endif
         const int index = storage.findBook(session.sourcePath());
         const BookLibrary::Entry* book = index < 0 ? nullptr : storage.book(static_cast<size_t>(index));
         return book == nullptr ? std::string_view{} : BookLibrary::displayName(*book);

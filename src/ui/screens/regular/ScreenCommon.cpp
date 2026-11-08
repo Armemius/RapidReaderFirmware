@@ -3,7 +3,11 @@
 namespace screens::detail {
 
     namespace {
+#ifdef RAPID_READER
+        constexpr int16_t kRailWidth = 160;
+#else
         constexpr int16_t kRailWidth = 136;
+#endif
         constexpr int16_t kContentGap = 12;
         constexpr int16_t kRightInset = 48;
     } // namespace
@@ -13,7 +17,11 @@ namespace screens::detail {
             return Action::None;
         }
 
+#ifdef RAPID_READER
+        const int16_t tabHeight = static_cast<int16_t>(ui.height() / 2);
+#else
         const int16_t tabHeight = static_cast<int16_t>(ui.height() / 4);
+#endif
         ui::Column tabs{{0, 0, kRailWidth, ui.height()}};
         if (ui.tab(tabs.next(tabHeight), ui.text(UiText::Read),
                    active == Screen::Read || active == Screen::Library || active == Screen::Chapters
@@ -28,6 +36,7 @@ namespace screens::detail {
                    ui::Icon::Edit)) {
             screen = Screen::Settings;
         }
+#ifndef RAPID_READER
         if (ui.tab(tabs.next(tabHeight), ui.text(UiText::Device),
                    active == Screen::Device || active == Screen::StorageEncryption || active == Screen::Sync
                        || active == Screen::Ota,
@@ -40,6 +49,7 @@ namespace screens::detail {
                    ui::Icon::Hourglass)) {
             screen = Screen::FocusTimers;
         }
+#endif
         if (ui.iconButton({static_cast<int16_t>(ui.width() - 46), 4, 36, 36}, ui::Icon::Power)) {
             return Action::PowerOff;
         }

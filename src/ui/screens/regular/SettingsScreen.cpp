@@ -3,6 +3,11 @@
 namespace screens {
 
     Action settings(ui::Context& ui, Screen& screen) {
+#ifdef RAPID_READER
+        // The application renders the display form directly for this destination.
+        screen = Screen::Settings;
+        return Action::None;
+#else
         if (const Action action = detail::navigation(ui, Screen::Settings, screen); action != Action::None) {
             return action;
         }
@@ -31,6 +36,7 @@ namespace screens {
         if (ui.button(system.next(), ui.text(UiText::NetworkUpdates)))
             screen = Screen::NetworkSettings;
         return Action::None;
+#endif
     }
 
 } // namespace screens

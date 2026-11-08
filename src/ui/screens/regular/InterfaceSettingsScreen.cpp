@@ -6,6 +6,9 @@ namespace screens {
     namespace {
 
         std::string_view nextLocale(const locales::Catalog& catalog, std::string_view current) {
+#ifdef RAPID_READER
+            return current == "ru" ? "en" : "ru";
+#else
             bool returnNext = current == Localization::kDefaultLocale;
             for (const auto& pack: catalog) {
                 if (returnNext)
@@ -13,6 +16,7 @@ namespace screens {
                 returnNext = pack.locale == current;
             }
             return Localization::kDefaultLocale;
+#endif
         }
 
     } // namespace
@@ -21,12 +25,23 @@ namespace screens {
                                std::span<const uint32_t> standbyDurations, void (*setBrightness)(uint8_t),
                                Screen& screen) {
         bool changed = false;
+#ifdef RAPID_READER
+        navigationAction = detail::navigation(ui, Screen::Settings, screen);
+        const ui::Rect content = detail::tabContent(ui);
+#else
         const ui::Rect content = detail::content(ui);
+#endif
         constexpr int16_t gap = 6;
+#ifdef RAPID_READER
+        constexpr int16_t backWidth = 0;
+#else
         constexpr int16_t backWidth = 56;
+#endif
         constexpr int16_t topHeight = 42;
+#ifndef RAPID_READER
         if (ui.button({content.x, content.y, backWidth, topHeight}, "<<"))
             screen = Screen::Settings;
+#endif
         if (ui.slider({static_cast<int16_t>(content.x + backWidth + gap), content.y,
                        static_cast<int16_t>(content.w - backWidth - gap), topHeight},
                       ui.text(UiText::Brightness), config.brightnessPercent, "%")) {
@@ -54,10 +69,18 @@ namespace screens {
         }
 
         if (ui.setting({content.x, secondRowY, halfWidth, rowHeight}, ui.text(UiText::Language),
+#ifdef RAPID_READER
+                       config.locale == "en" ? "English" : "Русский",
+#else
                        languages_ ? locales::localeName(*languages_, config.locale) : std::string_view{config.locale},
+#endif
                        ui::SettingLayout::Inline)) {
+#ifdef RAPID_READER
+            config.locale = config.locale == "ru" ? "en" : "ru";
+#else
             config.locale = !languages_ ? std::string{Localization::kDefaultLocale}
                                         : std::string{nextLocale(*languages_, config.locale)};
+#endif
             ui.setLocale(config.locale);
             changed = true;
         }
@@ -65,7 +88,12 @@ namespace screens {
         std::string standby{ui.text(UiText::Off)};
         const size_t standbyIndex = config.standbyTimerIndex;
         if (standbyIndex < standbyDurations.size() && standbyDurations[standbyIndex] != 0) {
-            standby = std::to_string(standbyDurations[standbyIndex] / 60000UL) + "m";
+            standby = std::to_string(standbyDurations[standbyIndex] / 60000UL)
+#ifdef RAPID_READER
+                    + (config.locale == "ru" ? " мин" : " min");
+#else
+                    + "m";
+#endif
         }
         if (ui.setting({static_cast<int16_t>(content.x + halfWidth + gap), firstRowY, halfWidth, rowHeight},
                        ui.text(UiText::Standby), standby, ui::SettingLayout::Inline)) {

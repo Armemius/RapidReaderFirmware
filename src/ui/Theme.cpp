@@ -76,7 +76,29 @@ namespace ui::themes {
     }
 
     ThemeEntry defaultTheme() {
-        return {.id = std::string{kDefaultThemeId}, .definition = {}, .builtIn = true};
+        ThemeEntry theme{.id = std::string{kDefaultThemeId}, .definition = {}, .builtIn = true};
+#ifdef RAPID_READER
+        theme.definition.name = "RapidReader";
+        theme.definition.colors = {
+            .background = rgb565(13, 9, 13),
+            .foreground = rgb565(255, 240, 237),
+            .muted = rgb565(180, 157, 163),
+            .subtle = rgb565(88, 63, 73),
+            .accent = rgb565(255, 48, 75),
+            .accentBar = rgb565(230, 36, 64),
+            .breakAccent = rgb565(180, 157, 163),
+            .onAccent = rgb565(255, 240, 237),
+            .surface = rgb565(20, 18, 23),
+            .surfaceMuted = rgb565(35, 25, 30),
+            .surfaceActive = rgb565(60, 22, 35),
+            .outline = rgb565(92, 49, 64),
+            .guide = rgb565(88, 63, 73),
+            .guideFocus = rgb565(255, 48, 75),
+            .phantom = rgb565(180, 157, 163),
+            .progressTrack = rgb565(64, 33, 46),
+        };
+#endif
+        return theme;
     }
 
     bool hasThemeExtension(std::string_view path) {

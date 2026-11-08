@@ -1,3 +1,17 @@
+# RapidReader firmware · 0.1.0
+
+Custom firmware for **ESP32-S3 Touch LCD 3.49 Rev2**. Russian by default, English
+optional, RR boot branding and a simplified reading/display-settings interface.
+Design adapted from the supplied RapidReader / RSVPConverter project.
+
+Build: `pio run -e rapid_reader_0_1_0` (also the default environment).
+See [build, installation and product behavior](docs/rapid-reader.md).
+Generate installable binaries with `python tools/package_rapid_reader.py`.
+The manual **RapidReader firmware** GitHub Actions workflow also builds and
+packages this variant. Original upstream documentation follows.
+
+---
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/images/rsvp-nano-dark.svg">

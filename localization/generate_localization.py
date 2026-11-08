@@ -5,7 +5,8 @@ The firmware output stays direct and length-aware:
 - stable UiText IDs generated from TOML order
 - one constexpr English rescue table indexed by text ID
 
-Non-English translations are packaged as installable locale assets, not firmware tables.
+Upstream non-English translations are installable locale assets. RapidReader
+additionally embeds the Russian table for use without an SD language pack.
 
 Requires Python 3.11+ for the standard-library tomllib module.
 """
@@ -388,9 +389,13 @@ def generate_header(model: LocalizationModel) -> str:
 	writer.add()
 	writer.add("namespace Localization {")
 	writer.add()
+	writer.add("#ifdef RAPID_READER")
+	writer.add('    inline constexpr std::string_view kDefaultLocale = "ru";')
+	writer.add("#else")
 	writer.add(f"    inline constexpr std::string_view kDefaultLocale = {cxx_string_literal(model.languages[model.default_language_index].code)};")
+	writer.add("#endif")
 	writer.add()
-	writer.add("    std::string_view text(UiText key);")
+	writer.add("    std::string_view text(UiText key, std::string_view locale = kDefaultLocale);")
 	writer.add()
 	writer.add("} // namespace Localization")
 	return writer.render()
@@ -446,17 +451,27 @@ def generate_texts(model: LocalizationModel) -> list[str]:
 		for text in model.texts
 	)
 	lines.append("    }};")
+	lines.extend(["#ifdef RAPID_READER", "    constexpr TextRow kRussianTexts = {{"])
+	lines.extend(
+		f"        /* {text.key:<24} */ {cxx_string_literal(text.values['Russian'])},"
+		for text in model.texts
+	)
+	lines.extend(["    }};", "#endif"])
 	return lines
 
 
 def generate_localization_functions() -> list[str]:
 	return [
-		"    std::string_view text(UiText key) {",
+		"    std::string_view text(UiText key, [[maybe_unused]] std::string_view locale) {",
 		"        const size_t textIndex = static_cast<size_t>(key);",
 		"        if (textIndex >= kTextCount) {",
 		"            return \"\";",
 		"        }",
 		"",
+		"#ifdef RAPID_READER",
+		'        if (locale != "en")',
+		"            return kRussianTexts[textIndex];",
+		"#endif",
 		"        return kTexts[textIndex];",
 		"    }",
 	]

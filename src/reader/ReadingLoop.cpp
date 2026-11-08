@@ -10,6 +10,18 @@
 
 namespace {
 
+#ifdef RAPID_READER
+    constexpr const char* kDemoWords[] = {
+        "Добро", "пожаловать", "в", "RapidReader!",
+        "Ваши", "книги.", "Ваш", "ритм.",
+        "Здесь", "текст", "появляется", "по", "одному", "слову.",
+        "Выберите", "удобную", "скорость", "и", "читайте", "в", "своём", "темпе.",
+        "В", "меню", "можно", "открыть", "библиотеку", "или", "перейти", "к", "главе.",
+        "Добавьте", "книги", "на", "карту", "памяти", "через", "USB.",
+        "Яркость", "экрана", "и", "язык", "можно", "изменить", "в", "настройках.",
+        "Приятного", "чтения!",
+    };
+#else
     constexpr const char* kDemoWords[] = {
         "This",
         "is",
@@ -409,6 +421,7 @@ namespace {
         "you.",
     };
 
+#endif
     constexpr size_t kDemoWordCount = sizeof(kDemoWords) / sizeof(kDemoWords[0]);
     constexpr uint16_t kLowWpmMax = 100;
     constexpr uint16_t kLowWpmStep = 10;

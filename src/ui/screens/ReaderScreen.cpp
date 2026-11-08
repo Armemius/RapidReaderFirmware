@@ -407,6 +407,9 @@ namespace screens {
         ReadingLoop::setBookStore(session, store, nowMs);
 
         const uint32_t savedWord = ReadingProgress::restore(session, store);
+#ifdef RAPID_READER
+        session.state.overrides = {};
+#endif
         if (savedWord != ReadingProgress::kNoSavedWordIndex) {
             ReadingLoop::seekTo(session, savedWord);
             ReadingProgress::cache(session, preferences, static_cast<uint32_t>(session.state.wordIndex));
@@ -487,7 +490,11 @@ namespace screens {
         const ui::Rect readingArea = ui.paintBounds(readerLayout::readingArea(ui.width(), ui.height(), vertical));
         if (pageView) {
             const std::string overlay =
-                vertical || !overlayVisible ? "" : std::to_string(settings.wpm) + (cjkPacing ? " CPM" : " WPM");
+                vertical || !overlayVisible ? "" : std::to_string(settings.wpm) + (cjkPacing ? " CPM" :
+#ifdef RAPID_READER
+                     ui.locale() == "ru" ? " сл/мин" :
+#endif
+                     " WPM");
             const auto typeface = [this](size_t wordIndex) -> FontCatalog::Face {
                 return pageTypeface(wordIndex);
             };
@@ -496,7 +503,11 @@ namespace screens {
         } else if (ui.redraw(readingArea, frameSignature(session.currentWord, overlayVisible, cjkPacing, settings),
                              true)) {
             const std::string overlay =
-                overlayVisible ? std::to_string(settings.wpm) + (cjkPacing ? " CPM" : " WPM") : "";
+                overlayVisible ? std::to_string(settings.wpm) + (cjkPacing ? " CPM" :
+#ifdef RAPID_READER
+                     ui.locale() == "ru" ? " сл/мин" :
+#endif
+                     " WPM") : "";
             background_ = ui.color(ui::themes::ColorRole::Background);
             activateFace(face_);
             text_.setTextColor(ui.color(ui::themes::ColorRole::Foreground),
@@ -704,7 +715,7 @@ namespace screens {
                         gfx.setTextColor(ui.color(ui::themes::ColorRole::Accent));
                         const int16_t overlayY =
                             std::min<int16_t>(ui.height() - 56, readingArea.y + readingArea.h - 16);
-                        gfx.setCursor(static_cast<int16_t>((ui.width() - overlay.size() * 12) / 2 + dx),
+                        gfx.setCursor(static_cast<int16_t>((ui.width() - ui.textWidth(overlay, 2)) / 2 + dx),
                                       static_cast<int16_t>(overlayY + dy));
                         gfx.print(overlay.c_str());
                     }
@@ -716,7 +727,11 @@ namespace screens {
         renderedWordIndex_ = pageView ? SIZE_MAX : session.state.wordIndex;
 
         const std::string batteryLabel = readerLayout::batteryText(settings.batteryLabel, battery);
-        const std::string overlay = overlayVisible ? std::to_string(settings.wpm) + (cjkPacing ? " CPM" : " WPM") : "";
+        const std::string overlay = overlayVisible ? std::to_string(settings.wpm) + (cjkPacing ? " CPM" :
+#ifdef RAPID_READER
+                     ui.locale() == "ru" ? " сл/мин" :
+#endif
+                     " WPM") : "";
         readerLayout::chrome(ui,
                              {
                                  .vertical = vertical,
@@ -801,6 +816,7 @@ namespace screens {
         const int absY = std::abs(deltaY);
         const bool tapLike = absX <= kTapSlop && absY <= kTapSlop;
 
+#ifndef RAPID_READER
         if (touchIntent_ == TouchIntent::None && tapLike && batteryLongPressed(touch)) {
             settings::toggleVisibility(settings_.batteryIconVisibility, session.playing);
             settingsStore.acceptChanges();
@@ -816,6 +832,7 @@ namespace screens {
             return;
         }
 
+#endif
         if (session.playing) {
             if (held && tapLike && !playLocked_) {
                 resetTouch();

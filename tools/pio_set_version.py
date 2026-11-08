@@ -20,6 +20,9 @@ def run_git(*args: str) -> str:
 
 
 def detect_version() -> str:
+    product_version = env.GetProjectOption("custom_firmware_version", "").strip()
+    if product_version:
+        return product_version
     selected_tag = os.environ.get("RSVP_FIRMWARE_TAG", "").strip()
 
     try:

@@ -11,6 +11,9 @@
 #include "settings/SettingsRules.h"
 #include "storage/fs/StoragePaths.h"
 #include "text/LocaleTag.h"
+#ifdef RAPID_READER
+#include "product/RapidReaderSettings.h"
+#endif
 
 namespace settings {
     namespace {
@@ -81,6 +84,9 @@ namespace settings {
         }
 
         void sanitize(DeviceSettings& value) {
+#ifdef RAPID_READER
+            product::applyDefaults(value);
+#endif
             auto& typography = value.reading.typography;
             if (typography.fontId.empty())
                 typography.fontId = TypographySettings{}.fontId;
