@@ -145,7 +145,7 @@ namespace screens {
             ui.label(rapid::content(ui), ui.text(UiText::NoLibraryItems), 1, ui::themes::Muted, ui::TextAlign::Center, 2);
             return Action::None;
         }
-        rapid::listPaging(ui, items.size(), productPage_, carouselGesture_);
+        rapid::listPaging(ui, items.size(), productPage_, carouselGesture_, rapid::PagingStyle::SwipeArrows);
         for (size_t row = 0; row < 2; ++row) {
             const size_t index = productPage_ * 2 + row;
             if (index < items.size()) {

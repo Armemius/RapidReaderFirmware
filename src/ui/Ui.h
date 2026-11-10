@@ -269,6 +269,10 @@ namespace ui {
         bool booting() const { return booting_; }
         void setBootMessage(std::string_view message) { bootMessage_ = message; }
         std::string_view bootMessage() const { return bootMessage_; }
+        // A recognized drag owns this release even if touch noise filtering kept Tap.
+        void cancelTap() {
+            touchEvent_.actions = static_cast<uint8_t>(touchEvent_.actions & ~TouchTap);
+        }
         void beginFrame(uint8_t screen);
         void endFrame();
         void invalidate();

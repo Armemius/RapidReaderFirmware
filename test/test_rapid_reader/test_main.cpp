@@ -218,9 +218,36 @@ void test_library_and_chapter_pages_keep_every_item_accessible() {
         action = library.draw(ui, items, 0, screen);
         ui.endFrame();
     };
+    const auto swipeLibrary = [&](uint16_t fromX, uint16_t toX, uint32_t time) {
+        contact = {true, fromX, 75};
+        ui.pollTouch(time);
+        drawLibrary();
+        contact = {true, toX, 75};
+        ui.pollTouch(time + 40);
+        drawLibrary();
+        contact = {};
+        ui.pollTouch(time + 80);
+        drawLibrary();
+        TEST_ASSERT_TRUE(action == screens::Action::None);
+        TEST_ASSERT_EQUAL_UINT32(0, library.selectedIndex());
+    };
     drawLibrary();
-    tap(ui, 606, 95, 100, drawLibrary);
-    tap(ui, 300, 75, 300, drawLibrary);
+    tap(ui, 606, 106, 100, drawLibrary);
+    TEST_ASSERT_TRUE(action == screens::Action::None);
+    tap(ui, 34, 106, 300, drawLibrary);
+    TEST_ASSERT_TRUE(action == screens::Action::None);
+    tap(ui, 300, 75, 500, drawLibrary);
+    TEST_ASSERT_TRUE(action == screens::Action::OpenBook);
+    TEST_ASSERT_EQUAL_UINT32(0, library.selectedIndex());
+    // Fast swipes only change pages, including at either end of the library.
+    swipeLibrary(160, 480, 700);
+    swipeLibrary(480, 160, 900);
+    swipeLibrary(480, 160, 1100);
+    tap(ui, 606, 106, 1300, drawLibrary);
+    TEST_ASSERT_TRUE(action == screens::Action::None);
+    swipeLibrary(160, 480, 1500);
+    tap(ui, 606, 106, 1700, drawLibrary);
+    tap(ui, 300, 75, 1900, drawLibrary);
     TEST_ASSERT_TRUE(action == screens::Action::OpenBook);
     TEST_ASSERT_EQUAL_UINT32(2, library.selectedIndex());
 
@@ -234,8 +261,16 @@ void test_library_and_chapter_pages_keep_every_item_accessible() {
         ui.endFrame();
     };
     drawChapters();
-    tap(ui, 606, 95, 500, drawChapters);
-    tap(ui, 300, 75, 700, drawChapters);
+    // Plain clicks on the arrow itself turn pages in both directions.
+    tap(ui, 606, 106, 2100, drawChapters);
+    TEST_ASSERT_TRUE(action == screens::Action::None);
+    tap(ui, 34, 106, 2300, drawChapters);
+    TEST_ASSERT_TRUE(action == screens::Action::None);
+    tap(ui, 300, 75, 2500, drawChapters);
+    TEST_ASSERT_TRUE(action == screens::Action::Resume);
+    TEST_ASSERT_EQUAL_UINT32(0, reader.state.wordIndex);
+    tap(ui, 606, 106, 2700, drawChapters);
+    tap(ui, 300, 75, 2900, drawChapters);
     TEST_ASSERT_TRUE(action == screens::Action::Resume);
     TEST_ASSERT_EQUAL_UINT32(10, reader.state.wordIndex);
 }
@@ -385,6 +420,101 @@ void test_tutorial_touch_navigation_and_both_languages() {
     }
 }
 
+void test_chapter_swipes_are_bounded_and_do_not_open_a_chapter() {
+    RecordingGfx gfx;
+    ui::Context ui(gfx);
+    ui.setTheme(testTheme());
+    ui.setTouchSource({.surface = {640, 172}, .poll = &poll});
+    screens::ChaptersScreen chapters;
+    const std::array<ChapterMarker, 5> markers{{{"Первая", 0}, {"Вторая", 5},
+        {"Третья", 10}, {"Четвёртая", 15}, {"Пятая", 20}}};
+    ReadingSession reader;
+    auto screen = screens::Screen::Chapters;
+    auto action = screens::Action::None;
+    const auto draw = [&] {
+        ui.beginFrame(static_cast<uint8_t>(screen));
+        action = chapters.draw(ui, markers, reader, settings::ReadingSettings{}, 0, screen);
+        ui.endFrame();
+    };
+    uint32_t time = 100;
+    const auto swipe = [&](uint16_t fromX, uint16_t toX) {
+        contact = {true, fromX, 75};
+        ui.pollTouch(time);
+        draw();
+        contact = {true, toX, 75};
+        ui.pollTouch(time + 40);
+        draw();
+        contact = {};
+        ui.pollTouch(time + 80);
+        draw();
+        time += 200;
+        TEST_ASSERT_TRUE(action == screens::Action::None);
+        TEST_ASSERT_EQUAL_UINT32(0, reader.state.wordIndex);
+    };
+    draw();
+    // Swiping right at the first page does not wrap around.
+    swipe(160, 480);
+    tap(ui, 300, 75, time, draw);
+    time += 200;
+    TEST_ASSERT_TRUE(action == screens::Action::Resume);
+    TEST_ASSERT_EQUAL_UINT32(0, reader.state.wordIndex);
+    swipe(480, 160);
+    TEST_ASSERT_TRUE(gfx.text.find("2 / 3") != std::string::npos);
+    swipe(480, 160);
+    TEST_ASSERT_TRUE(gfx.text.find("3 / 3") != std::string::npos);
+    // A further swipe and a tap on the disabled edge stay on the last page.
+    swipe(480, 160);
+    tap(ui, 606, 95, time, draw);
+    time += 200;
+    TEST_ASSERT_TRUE(action == screens::Action::None);
+    tap(ui, 300, 75, time, draw);
+    TEST_ASSERT_TRUE(action == screens::Action::Resume);
+    TEST_ASSERT_EQUAL_UINT32(20, reader.state.wordIndex);
+}
+
+void test_swipe_arrow_opacity_follows_available_directions() {
+    class ArrowGfx : public RecordingGfx {
+    public:
+        uint16_t left = 0, right = 0;
+        void drawLine(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color) override {
+            // Observe only side indicators, outside the chapter rows and header.
+            if (y1 >= 52 && y2 >= 52) {
+                if (x1 < 60 && x2 < 60)
+                    left = color;
+                if (x1 > 580 && x2 > 580)
+                    right = color;
+            }
+            RecordingGfx::drawLine(x1, y1, x2, y2, color);
+        }
+    } gfx;
+    ui::Context ui(gfx);
+    ui.setTheme(testTheme());
+    ui::CarouselGesture gesture;
+    size_t page = 0;
+    const auto draw = [&](size_t count) {
+        ui.invalidate();
+        ui.beginFrame(1);
+        screens::rapid::listPaging(ui, count, page, gesture, screens::rapid::PagingStyle::SwipeArrows);
+        ui.endFrame();
+    };
+    draw(5);
+    const auto dim = gfx.left;
+    const auto bright = gfx.right;
+    TEST_ASSERT_NOT_EQUAL(dim, bright);
+    page = 1;
+    draw(5);
+    TEST_ASSERT_EQUAL_UINT16(bright, gfx.left);
+    TEST_ASSERT_EQUAL_UINT16(bright, gfx.right);
+    page = 2;
+    draw(5);
+    TEST_ASSERT_EQUAL_UINT16(bright, gfx.left);
+    TEST_ASSERT_EQUAL_UINT16(dim, gfx.right);
+    draw(1);
+    TEST_ASSERT_EQUAL_UINT32(0, page);
+    TEST_ASSERT_EQUAL_UINT16(dim, gfx.left);
+    TEST_ASSERT_EQUAL_UINT16(dim, gfx.right);
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_languages_are_complete_and_available_without_sd);
@@ -402,5 +532,7 @@ int main() {
     RUN_TEST(test_tutorial_first_boot_completion_and_interrupted_restart);
     RUN_TEST(test_tutorial_skip_and_back_work_on_every_step);
     RUN_TEST(test_tutorial_touch_navigation_and_both_languages);
+    RUN_TEST(test_chapter_swipes_are_bounded_and_do_not_open_a_chapter);
+    RUN_TEST(test_swipe_arrow_opacity_follows_available_directions);
     return UNITY_END();
 }

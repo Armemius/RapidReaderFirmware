@@ -29,7 +29,7 @@ int main(int argc, char** argv) {
     settings::InterfaceSettings config;
     screens::InterfaceScreen display;
     constexpr std::array<uint32_t, 5> standby{0, 60000, 300000, 900000, 1800000};
-    for (const auto name : {"boot", "menu-ru", "settings-ru", "settings-en", "library-ru", "chapters-ru", "loading-ru", "long-title-ru", "startup-ru", "usb-ru", "usb-upload-ru", "usb-en", "usb-storage-ru", "tutorial-books-ru", "tutorial-controls-ru", "tutorial-gestures-ru", "tutorial-display-ru", "tutorial-books-en", "tutorial-display-en"}) {
+    for (const auto name : {"boot", "menu-ru", "settings-ru", "settings-en", "library-ru", "chapters-ru", "chapters-middle-ru", "chapters-last-ru", "loading-ru", "long-title-ru", "startup-ru", "usb-ru", "usb-upload-ru", "usb-en", "usb-storage-ru", "tutorial-books-ru", "tutorial-controls-ru", "tutorial-gestures-ru", "tutorial-display-ru", "tutorial-books-en", "tutorial-display-en"}) {
         ui.invalidate();
         auto screen = screens::Screen::Read;
         if (std::string_view{name}.starts_with("tutorial-")) {
@@ -79,11 +79,13 @@ int main(int argc, char** argv) {
                     {.title = "Мастер и Маргарита", .author = "Михаил Булгаков"}}};
                 const std::vector<screens::LibraryItem> items{{&books[0], "", 42}, {&books[1], "", 7}, {&books[2], "", 0}};
                 library.draw(ui, items, 0, screen);
-            } else if (std::string_view{name} == "chapters-ru") {
+            } else if (std::string_view{name}.starts_with("chapters-")) {
                 screens::ChaptersScreen chapters;
                 const std::array<ChapterMarker, 5> markers{{{"Вступление", 0}, {"Часть первая", 5},
                     {"Часть вторая", 10}, {"Часть третья", 15}, {"Послесловие", 20}}};
                 ReadingSession reader;
+                reader.state.wordIndex = std::string_view{name} == "chapters-middle-ru" ? 10
+                                       : std::string_view{name} == "chapters-last-ru" ? 20 : 0;
                 chapters.draw(ui, markers, reader, settings::ReadingSettings{}, 0, screen);
             } else {
                 config.locale = std::string_view{name} == "settings-en" ? "en" : "ru";

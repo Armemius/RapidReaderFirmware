@@ -53,7 +53,7 @@ namespace screens {
             source_ = chapters;
             productPage_ = readingIndex / 2;
         }
-        rapid::listPaging(ui, chapters.size(), productPage_, carouselGesture_);
+        rapid::listPaging(ui, chapters.size(), productPage_, carouselGesture_, rapid::PagingStyle::SwipeArrows);
         for (size_t row = 0; row < 2; ++row) {
             const size_t index = productPage_ * 2 + row;
             if (index < chapters.size()) {

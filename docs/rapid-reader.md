@@ -17,8 +17,12 @@ Custom RSVP Nano firmware for **Waveshare ESP32-S3 Touch LCD 3.49 Rev2**
 - The menu contains reading and Settings. Reading retains resume, chapters and
   library. Settings directly contains brightness, theme, language, standby timer
   and screensaver, formerly under Display.
-- Library and Chapters use large list rows with previous/next buttons and
-  horizontal swipes. Progress, authors and long Cyrillic titles remain readable.
+- Library and Chapters use the same large list rows and horizontal swipes,
+  with tall chevrons and a two-pixel stroke at both sides: brighter in available
+  directions and faint at the first/last page. Their full-height touch areas
+  accept plain clicks/taps in both directions. Swiping only changes pages;
+  tap a row to open a book or chapter. Paging stops at either end.
+  Progress, authors and long Cyrillic titles remain readable.
 - Device, Focus, network/update menus, reading/pacing/layout configuration and
   per-book font controls are hidden. Hidden reading preferences reset to their
   upstream defaults on load and on settings edits. Reading speed stays adjustable
@@ -64,7 +68,11 @@ Rendered with the production UI and Arduino_GFX rasterizer at 640×172.
 
 ![Russian library](images/rapid-reader/library-ru.png)
 
-![Russian chapter navigation](images/rapid-reader/chapters-ru.png)
+![Russian chapter navigation: first page](images/rapid-reader/chapters-ru.png)
+
+![Chapter navigation: both directions available](images/rapid-reader/chapters-middle-ru.png)
+
+![Chapter navigation: last page](images/rapid-reader/chapters-last-ru.png)
 
 ![Loading screen](images/rapid-reader/loading-ru.png)
 
@@ -135,26 +143,29 @@ The embedded UI font can be regenerated with `tools/generate_rapid_ui_font.py`
 
 ## Validation of this revision
 
-Fifteen host product tests passed:
+Seventeen host product tests passed:
 embedded translations, the full Russian alphabet including Ё/ё in every reading
 font size, imported settings defaults, repeated language switching, navigation
 and boot branding, the UI font and Cyrillic case conversion, brightness pointer
-capture, and library/chapter paging. These checks use the native Arduino shims,
+capture, and library/chapter paging. Library and chapter checks cover bounded
+horizontal swipes, plain arrow clicks in both directions and accidental-selection
+prevention. Arrow opacity checks cover the first, middle,
+last and single page. These checks use the native Arduino shims,
 system HarfBuzz and the pinned SheenBidi source. The additional startup/USB checks
 cover persistent logo rendering during low-level storage callbacks, product
 translations, Russian/English USB screens and bounded transfer progress.
 Tutorial checks cover first-boot detection, interrupted restarts, completion and
 skip markers, bounded back/next navigation and touch controls in both languages.
 Three serial-protocol checks also pass, covering fragmentation, CRC recovery and
-UTF-8 response chunks. The nineteen previews above use the production UI and
+UTF-8 response chunks. The twenty-one previews above use the production UI and
 Arduino_GFX rasterizer at the physical display resolution.
 
 The Rev2 firmware compiled successfully with PlatformIO 6.2.0, Arduino ESP32
-3.3.9 (ESP-IDF 5.5.4) and Xtensa GCC 14.2.0. This revision rebuilt in approximately
-four minutes with dependencies already installed. The release package contains
+3.3.9 (ESP-IDF 5.5.4) and Xtensa GCC 14.2.0. The release package contains
 the merged installer and application-only OTA image, with SHA-256 checksums.
-Boot timing, backlight behavior and USB transfers still require validation on
-physical Rev2 hardware; host tests and rendered previews do not measure them.
+Touch gestures, arrow visibility, boot timing, backlight behavior and USB
+transfers still require validation on physical Rev2 hardware; host tests and
+rendered previews do not measure physical behavior.
 
 ## Attribution
 

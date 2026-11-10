@@ -14,5 +14,7 @@ namespace screens::rapid {
                  std::span<const uint32_t> durations, void (*brightness)(uint8_t));
     // A list page has two large rows and dedicated previous/next touch areas.
     ui::Rect listRow(ui::Context& ui, size_t row);
-    bool listPaging(ui::Context& ui, size_t count, size_t& page, ui::CarouselGesture& gesture);
+    enum class PagingStyle { Buttons, SwipeArrows };
+    bool listPaging(ui::Context& ui, size_t count, size_t& page, ui::CarouselGesture& gesture,
+                    PagingStyle style = PagingStyle::Buttons);
 } // namespace screens::rapid

@@ -20,6 +20,28 @@ namespace screens::rapid {
             output.drawLine(x + 4, y, x, y + 4, color);
         }
 
+        void swipeArrow(ui::Context& ui, ui::Rect rect, bool right, bool available) {
+            const bool down = available && pressed(ui, rect);
+            const uint8_t alpha = !available ? 36 : down ? 255 : 208;
+            const auto state = ui::Context::combine(alpha, right);
+            if (ui.redraw(rect, state))
+                ui.paint(rect, [&](Arduino_GFX& output, ui::Rect r) {
+                    output.fillRect(r.x, r.y, r.w, r.h, ui.color(Background));
+                    const int16_t cx = r.x + r.w / 2;
+                    const int16_t cy = r.y + r.h / 2;
+                    const int16_t halfHeight = std::min<int16_t>(36, (r.h - 16) / 2);
+                    const int16_t tip = cx + (right ? 10 : -10);
+                    const int16_t tail = cx + (right ? -10 : 10);
+                    const auto ink = ui.blend(Accent, alpha);
+                    // A slightly wider chevron with a two-pixel horizontal stroke.
+                    // The full-height touch target remains independent of the drawing.
+                    for (int16_t offset = 0; offset < 2; ++offset) {
+                        output.drawLine(tail + offset, cy - halfHeight, tip + offset, cy, ink);
+                        output.drawLine(tip + offset, cy, tail + offset, cy + halfHeight, ink);
+                    }
+                });
+        }
+
         bool tab(ui::Context& ui, ui::Rect rect, std::string_view code, std::string_view title, bool active) {
             const bool hit = ui.tap(rect);
             const bool down = pressed(ui, rect);
@@ -238,21 +260,35 @@ namespace screens::rapid {
         return {68, static_cast<int16_t>(area.y + row * (height + 8)), static_cast<int16_t>(area.w - 112), height};
     }
 
-    bool listPaging(ui::Context& ui, size_t count, size_t& page, ui::CarouselGesture& gesture) {
+    bool listPaging(ui::Context& ui, size_t count, size_t& page, ui::CarouselGesture& gesture, PagingStyle style) {
         const auto area = content(ui);
         const size_t pages = std::max<size_t>(1, (count + 1) / 2);
         page = std::min(page, pages - 1);
         const auto old = page;
         const int delta = gesture.update(ui.touch(), area);
+        if (delta != 0)
+            ui.cancelTap();
         if (delta < 0 && page > 0)
             --page;
         else if (delta > 0 && page + 1 < pages)
             ++page;
-        if (action(ui, {area.x, area.y, 44, area.h}, "<", {}, {}, false, page > 0))
-            --page;
-        if (action(ui, {static_cast<int16_t>(area.x + area.w - 44), area.y, 44, area.h}, ">", {}, {}, false,
-                   page + 1 < pages))
-            ++page;
+        const ui::Rect previous{area.x, area.y, 44, area.h};
+        const ui::Rect next{static_cast<int16_t>(area.x + area.w - 44), area.y, 44, area.h};
+        if (style == PagingStyle::SwipeArrows) {
+            const bool back = ui.tap(previous, page > 0);
+            const bool forward = ui.tap(next, page + 1 < pages);
+            if (back)
+                --page;
+            else if (forward)
+                ++page;
+            swipeArrow(ui, previous, false, page > 0);
+            swipeArrow(ui, next, true, page + 1 < pages);
+        } else {
+            if (action(ui, previous, "<", {}, {}, false, page > 0))
+                --page;
+            if (action(ui, next, ">", {}, {}, false, page + 1 < pages))
+                ++page;
+        }
         ui.label({190, 0, 84, 42}, std::to_string(page + 1) + " / " + std::to_string(pages), 1,
                  ui::themes::Muted, ui::TextAlign::Right);
         return page != old;
