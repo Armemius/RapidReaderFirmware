@@ -2,6 +2,7 @@
 #include "library/IndexedBookStore.h"
 
 #include <algorithm>
+#include <limits>
 #include <string_view>
 
 #include "text/AsciiText.h"
@@ -505,6 +506,7 @@ namespace {
         if (codepoint <= 0x7FU)
             return isIgnoredTrailingChar(static_cast<char>(codepoint));
         switch (codepoint) {
+        case 0x00BBU: // Closing guillemet used in Russian text.
         case 0x2019U:
         case 0x201DU:
         case 0x3009U:
@@ -809,7 +811,7 @@ namespace {
         }
     }
 
-    uint32_t pacingBonusMsForWord(std::string_view word, bool nextWordStartsLowercase,
+    [[maybe_unused]] uint32_t pacingBonusMsForWord(std::string_view word, bool nextWordStartsLowercase,
                                   const settings::PacingSettings& pacing) {
         if (word.empty()) {
             return 0;
@@ -823,12 +825,27 @@ namespace {
         return totalBonusMs;
     }
 
-    uint32_t durationForWord(std::string_view word, bool nextWordStartsLowercase, uint32_t baseIntervalMs,
+    uint32_t durationForWord(std::string_view word, bool nextWordStartsLowercase, uint16_t wpm,
                              const settings::PacingSettings& pacing) {
-        if (baseIntervalMs == 0) {
+        if (wpm == 0)
             return 0;
-        }
+#ifdef RAPID_READER
+        // Half an interval for recognition, plus 10% per letter/digit:
+        // (60000 / WPM) * (length + 5) / 10. Five letters are exactly the target.
+        // Ignore punctuation and combining marks; use one interval for symbol-only tokens.
+        const int readableLength = codepointCount(word, UnicodeText::isWordCharacter);
+        const uint64_t units = readableLength > 0 ? static_cast<uint64_t>(readableLength) + 5 : 10;
+        const uint64_t divisor = 10ULL * wpm;
+        const uint64_t wordMs = (60'000ULL * units + divisor / 2) / divisor;
+        const uint32_t punctuationMs =
+            scaledDelayMs(punctuationPausePercentForWord(word, nextWordStartsLowercase), pacing.punctuationDelayMs);
+        // Replace the old additive length/complexity bonuses, avoiding double-counting.
+        return static_cast<uint32_t>(std::min<uint64_t>(wordMs + punctuationMs,
+                                                       std::numeric_limits<uint32_t>::max()));
+#else
+        const uint32_t baseIntervalMs = 60'000UL / wpm;
         return baseIntervalMs + pacingBonusMsForWord(word, nextWordStartsLowercase, pacing);
+#endif
     }
 
 } // namespace
@@ -980,7 +997,7 @@ namespace ReadingLoop {
                  + scaledDelayMs(punctuationPausePercentForWord(session.currentWord, false),
                                  settings.pacing.punctuationDelayMs);
         }
-        return durationForWord(session.currentWord, nextWordStartsLowercase, 60000UL / settings.wpm, settings.pacing);
+        return durationForWord(session.currentWord, nextWordStartsLowercase, settings.wpm, settings.pacing);
     }
 
     uint32_t elapsedInCurrentWordMs(const ReadingSession& session, uint32_t nowMs) {

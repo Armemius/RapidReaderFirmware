@@ -515,6 +515,105 @@ void test_swipe_arrow_opacity_follows_available_directions() {
     TEST_ASSERT_EQUAL_UINT16(dim, gfx.right);
 }
 
+namespace {
+    uint32_t rapidDuration(std::string_view word, uint16_t wpm = 300, std::string_view next = "Далее") {
+        const std::array<std::string, 2> words{std::string{word}, std::string{next}};
+        ReadingSession reader;
+        ReadingLoop::setWords(reader, words, 0);
+        settings::ReadingSettings settings;
+        settings.wpm = wpm;
+        return ReadingLoop::currentWordDurationMs(reader, settings);
+    }
+}
+
+void test_dynamic_pacing_has_a_five_letter_anchor_and_shorter_words_are_faster() {
+    TEST_ASSERT_EQUAL_UINT32(120, rapidDuration("я"));
+    TEST_ASSERT_EQUAL_UINT32(160, rapidDuration("дом"));
+    TEST_ASSERT_EQUAL_UINT32(200, rapidDuration("книга"));
+    TEST_ASSERT_EQUAL_UINT32(300, rapidDuration("абвгдежзий"));
+    TEST_ASSERT_EQUAL_UINT32(80, rapidDuration("дом", 600));
+    TEST_ASSERT_EQUAL_UINT32(100, rapidDuration("книга", 600));
+    TEST_ASSERT_EQUAL_UINT32(150, rapidDuration("абвгдежзий", 600));
+    TEST_ASSERT_EQUAL_UINT32(180, rapidDuration("hello", 333));
+    for (const uint16_t wpm : {10, 300, 333, 1000}) {
+        uint32_t previous = 0;
+        for (size_t letters = 1; letters <= 32; ++letters) {
+            const auto duration = rapidDuration(std::string(letters, 'a'), wpm);
+            TEST_ASSERT_TRUE(duration > previous);
+            previous = duration;
+        }
+    }
+}
+
+void test_dynamic_pacing_counts_unicode_letters_and_ignores_wrapping_punctuation() {
+    TEST_ASSERT_EQUAL_UINT32(200, rapidDuration("hello"));
+    TEST_ASSERT_EQUAL_UINT32(200, rapidDuration("HELLO"));
+    TEST_ASSERT_EQUAL_UINT32(200, rapidDuration("«книга»"));
+    TEST_ASSERT_EQUAL_UINT32(200, rapidDuration("(книга)"));
+    TEST_ASSERT_EQUAL_UINT32(180, rapidDuration("ЁЛКА"));
+    TEST_ASSERT_EQUAL_UINT32(180, rapidDuration("ёлка"));
+    TEST_ASSERT_EQUAL_UINT32(180, rapidDuration("café"));
+    TEST_ASSERT_EQUAL_UINT32(180, rapidDuration("café"));
+    TEST_ASSERT_EQUAL_UINT32(180, rapidDuration("NASA"));
+    TEST_ASSERT_EQUAL_UINT32(200, rapidDuration("12345"));
+    TEST_ASSERT_EQUAL_UINT32(280, rapidDuration("well-known"));
+}
+
+void test_dynamic_pacing_keeps_punctuation_pauses_separate() {
+    TEST_ASSERT_EQUAL_UINT32(290, rapidDuration("hello,"));
+    TEST_ASSERT_EQUAL_UINT32(470, rapidDuration("hello."));
+    TEST_ASSERT_EQUAL_UINT32(500, rapidDuration("hello!"));
+    TEST_ASSERT_EQUAL_UINT32(470, rapidDuration("«книга.»"));
+    // Comma pause remains 90 ms when the target interval changes to 100 ms.
+    TEST_ASSERT_EQUAL_UINT32(190, rapidDuration("hello,", 600));
+    TEST_ASSERT_EQUAL_UINT32(320, rapidDuration("—"));
+    TEST_ASSERT_EQUAL_UINT32(420, rapidDuration("..."));
+    TEST_ASSERT_EQUAL_UINT32(200, rapidDuration("🙂"));
+    TEST_ASSERT_EQUAL_UINT32(200, rapidDuration(""));
+}
+
+void test_dynamic_pacing_drives_the_actual_playback_deadlines() {
+    const std::array<std::string, 4> words{"я", "книга", "abcdefghij", "конец"};
+    ReadingSession reader;
+    ReadingLoop::setWords(reader, words, 0);
+    ReadingLoop::start(reader, 0);
+    const settings::ReadingSettings settings;
+    TEST_ASSERT_FALSE(ReadingLoop::update(reader, settings, 119, false));
+    TEST_ASSERT_EQUAL_UINT32(0, reader.state.wordIndex);
+    TEST_ASSERT_TRUE(ReadingLoop::update(reader, settings, 120, false));
+    TEST_ASSERT_EQUAL_UINT32(1, reader.state.wordIndex);
+    TEST_ASSERT_FALSE(ReadingLoop::update(reader, settings, 319, false));
+    TEST_ASSERT_TRUE(ReadingLoop::update(reader, settings, 320, false));
+    TEST_ASSERT_EQUAL_UINT32(2, reader.state.wordIndex);
+    TEST_ASSERT_FALSE(ReadingLoop::update(reader, settings, 619, false));
+    TEST_ASSERT_TRUE(ReadingLoop::update(reader, settings, 620, false));
+    TEST_ASSERT_EQUAL_UINT32(3, reader.state.wordIndex);
+    TEST_ASSERT_EQUAL_UINT32(620, reader.lastAdvanceMs);
+    ReadingLoop::setWords(reader, words, 0);
+    ReadingLoop::start(reader, 0);
+    TEST_ASSERT_TRUE(ReadingLoop::update(reader, settings, 620));
+    TEST_ASSERT_EQUAL_UINT32(3, reader.state.wordIndex);
+    TEST_ASSERT_EQUAL_UINT32(620, reader.lastAdvanceMs);
+}
+
+void test_dynamic_pacing_handles_long_tokens_speed_changes_and_cjk() {
+    TEST_ASSERT_EQUAL_UINT32(60'003'000, rapidDuration(std::string(100'000, 'x'), 10));
+    const std::array<std::string, 2> words{"книга", "далее"};
+    ReadingSession reader;
+    ReadingLoop::setWords(reader, words, 0);
+    ReadingLoop::start(reader, 0);
+    settings::ReadingSettings settings;
+    TEST_ASSERT_FALSE(ReadingLoop::update(reader, settings, 100, false));
+    settings.wpm = 600;
+    TEST_ASSERT_TRUE(ReadingLoop::update(reader, settings, 100, false));
+    TEST_ASSERT_EQUAL_UINT32(1, reader.state.wordIndex);
+    const std::array<std::string, 2> chinese{"吾輩", "猫"};
+    ReadingLoop::setWords(reader, chinese, 0);
+    settings.wpm = 300;
+    TEST_ASSERT_TRUE(ReadingLoop::pacingMode(reader) == settings::ReadingPacing::cjkPhrase);
+    TEST_ASSERT_EQUAL_UINT32(400, ReadingLoop::currentWordDurationMs(reader, settings));
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_languages_are_complete_and_available_without_sd);
@@ -534,5 +633,10 @@ int main() {
     RUN_TEST(test_tutorial_touch_navigation_and_both_languages);
     RUN_TEST(test_chapter_swipes_are_bounded_and_do_not_open_a_chapter);
     RUN_TEST(test_swipe_arrow_opacity_follows_available_directions);
+    RUN_TEST(test_dynamic_pacing_has_a_five_letter_anchor_and_shorter_words_are_faster);
+    RUN_TEST(test_dynamic_pacing_counts_unicode_letters_and_ignores_wrapping_punctuation);
+    RUN_TEST(test_dynamic_pacing_keeps_punctuation_pauses_separate);
+    RUN_TEST(test_dynamic_pacing_drives_the_actual_playback_deadlines);
+    RUN_TEST(test_dynamic_pacing_handles_long_tokens_speed_changes_and_cjk);
     return UNITY_END();
 }

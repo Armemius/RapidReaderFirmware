@@ -17,6 +17,10 @@ Custom RSVP Nano firmware for **Waveshare ESP32-S3 Touch LCD 3.49 Rev2**
 - The menu contains reading and Settings. Reading retains resume, chapters and
   library. Settings directly contains brightness, theme, language, standby timer
   and screensaver, formerly under Display.
+- Reading speed is calibrated to a five-letter word. Shorter words appear for
+  less time and longer words for more time; Russian and English use Unicode
+  letter/digit counts, excluding punctuation and combining marks. Sentence and
+  punctuation pauses remain separate. The guide explains the five-letter target.
 - Library and Chapters use the same large list rows and horizontal swipes,
   with tall chevrons and a two-pixel stroke at both sides: brighter in available
   directions and faint at the first/last page. Their full-height touch areas
@@ -100,6 +104,48 @@ Rendered with the production UI and Arduino_GFX rasterizer at 640×172.
 
 ![English guide completion](images/rapid-reader/tutorial-display-en.png)
 
+## Dynamic word timing
+
+The selected WPM is the target for a five-letter word. For a token containing
+`L` Unicode letters/digits, RapidReader uses:
+
+```text
+word_ms = round((60000 / WPM) * (L + 5) / 10)
+duration_ms = word_ms + punctuation_pause_ms
+```
+
+Half of the baseline interval is fixed recognition time; each letter adds a
+tenth. This gives every ordinary word length a smooth increase, with a
+five-letter word at exactly the selected interval (rounded to milliseconds).
+Tokens containing only symbols use one baseline interval before punctuation
+pauses. Numbers count as readable characters; combining accents, quotation
+marks and hyphens do not add letters. Both Ё and ё count as one letter.
+
+At **300 WPM**, before punctuation pauses:
+
+| Letters | Duration |
+| --- | --- |
+| 1 | 120 ms |
+| 3 | 160 ms |
+| 5 | 200 ms |
+| 10 | 300 ms |
+| 15 | 400 ms |
+
+Length-based RSVP timing and punctuation pauses are used by
+[OpenSpritz](https://github.com/brandly/OpenSpritz/blob/master/spritz.js), which
+extends long words and punctuation with additional display intervals.
+[ZapReader](https://www.zapreader.com/zapreader/) offers speed variability for
+shorter and longer chunks. Their implementations vary; the smooth coefficients
+above are RapidReader's calibration to the requested five-letter reference.
+The selected WPM is a five-letter reference rate; actual words per minute depend
+on the text and punctuation.
+
+The new curve replaces the previous additive long-word and complexity bonuses
+in the RapidReader build. Existing punctuation delays and CJK character pacing
+continue to apply. Saved speed values are preserved, and font prefetch uses the
+current word's actual duration to avoid borrowing time from short words.
+Other board profiles keep their existing pacing algorithm.
+
 ## Build and install
 
 Use Python 3.11+ and PlatformIO Core 6.1.19 or newer.
@@ -143,7 +189,7 @@ The embedded UI font can be regenerated with `tools/generate_rapid_ui_font.py`
 
 ## Validation of this revision
 
-Seventeen host product tests passed:
+Twenty-two host product tests passed:
 embedded translations, the full Russian alphabet including Ё/ё in every reading
 font size, imported settings defaults, repeated language switching, navigation
 and boot branding, the UI font and Cyrillic case conversion, brightness pointer
@@ -156,6 +202,11 @@ cover persistent logo rendering during low-level storage callbacks, product
 translations, Russian/English USB screens and bounded transfer progress.
 Tutorial checks cover first-boot detection, interrupted restarts, completion and
 skip markers, bounded back/next navigation and touch controls in both languages.
+Five timing checks cover the five-letter anchor and monotonic length scaling,
+Russian/Latin Unicode and decomposed accents, punctuation/quote pauses, actual
+mixed-length playback deadlines and catch-up, speed changes, long-token integer
+arithmetic, and existing CJK timing. All 57 upstream pacing checks passed,
+validating that other profiles retain their existing timing behavior.
 Three serial-protocol checks also pass, covering fragmentation, CRC recovery and
 UTF-8 response chunks. The twenty-one previews above use the production UI and
 Arduino_GFX rasterizer at the physical display resolution.

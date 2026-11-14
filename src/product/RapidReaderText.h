@@ -58,7 +58,7 @@ namespace product {
             {"BOOT — старт / пауза. PWR — открыть меню.", "BOOT starts / pauses reading. PWR opens the menu."},
             {"В меню: продолжить, библиотека и главы.", "The menu has Resume, Library and Chapters."},
             {"Скорость и навигация", "Speed and navigation"},
-            {"На паузе: свайп вверх / вниз меняет скорость.", "While paused: swipe up / down to change reading speed."},
+            {"На паузе: вверх / вниз — скорость для слов из 5 букв.", "Paused: swipe up / down to set the speed for 5-letter words."},
             {"Свайп влево / вправо — перемещение по тексту.", "Swipe left / right while paused to move through the text."},
             {"Экран под вас", "Make it yours"},
             {"В «Настройках»: яркость, тема, язык и режим ожидания.", "Settings has brightness, theme, language and standby controls."},

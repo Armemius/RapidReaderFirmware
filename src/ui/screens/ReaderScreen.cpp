@@ -244,7 +244,11 @@ namespace screens {
             readAheadBlockCount_ = 0;
         }
 
+#ifdef RAPID_READER
+        const uint32_t baseWordDurationMs = ReadingLoop::currentWordDurationMs(session, settings_);
+#else
         const uint32_t baseWordDurationMs = 60'000UL / settings_.wpm;
+#endif
         const auto hasSlack = [&](uint32_t currentMs) {
             return currentMs - session.lastAdvanceMs + kFontReadAheadMinimumSlackMs < baseWordDurationMs;
         };
