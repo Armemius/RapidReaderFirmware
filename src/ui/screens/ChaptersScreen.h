@@ -8,6 +8,9 @@
 #include "settings/SettingsModel.h"
 #include "ui/Ui.h"
 #include "ui/Layouts.h"
+#ifdef RAPID_READER
+#include "ui/RapidReaderTubeList.h"
+#endif
 #include "ui/screens/Screens.h"
 
 namespace screens {
@@ -21,7 +24,7 @@ namespace screens {
         std::span<const ChapterMarker> source_;
         size_t centeredIndex_ = 0;
 #ifdef RAPID_READER
-        size_t productPage_ = 0;
+        rapid::TubeList productTube_;
 #endif
         size_t dragStartIndex_ = 0;
         int16_t offset_ = 0;

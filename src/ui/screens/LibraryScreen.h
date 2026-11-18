@@ -9,6 +9,9 @@
 #include "library/BookLibrary.h"
 #include "ui/screens/Screens.h"
 #include "ui/Layouts.h"
+#ifdef RAPID_READER
+#include "ui/RapidReaderTubeList.h"
+#endif
 
 class StorageManager;
 class IndexedBookStore;
@@ -49,7 +52,7 @@ namespace screens {
         int32_t offset_ = 0;
         size_t selectedIndex_ = 0;
 #ifdef RAPID_READER
-        size_t productPage_ = 0;
+        rapid::TubeList productTube_;
 #endif
         std::vector<LibraryItem> items_;
         bool itemsValid_ = false;

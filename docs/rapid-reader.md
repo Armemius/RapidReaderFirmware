@@ -21,12 +21,17 @@ Custom RSVP Nano firmware for **Waveshare ESP32-S3 Touch LCD 3.49 Rev2**
   less time and longer words for more time; Russian and English use Unicode
   letter/digit counts, excluding punctuation and combining marks. Sentence and
   punctuation pauses remain separate. The guide explains the five-letter target.
-- Library and Chapters use the same large list rows and horizontal swipes,
-  with tall chevrons and a two-pixel stroke at both sides: brighter in available
-  directions and faint at the first/last page. Their full-height touch areas
-  accept plain clicks/taps in both directions. Swiping only changes pages;
-  tap a row to open a book or chapter. Paging stops at either end.
-  Progress, authors and long Cyrillic titles remain readable.
+- Library and Chapters use rectangular panels mounted on a rotating hexagonal
+  drum. The centered panel stays rectangular and larger. The flat panels above
+  and below tilt into perspective trapezoids, with straight edges throughout.
+  The actual Cyrillic titles and metadata are projected along with the panels.
+  Drag up/down to browse; the nearest item snaps into the center on release. A tap opens the visible item under your finger.
+- The up/down arrows on the right also move one item per click. Available
+  directions are brighter; the first/last item disables and fades the unavailable
+  arrow. Scrolling is bounded, stationary holds do not keep scrolling, and drag
+  releases never open books or seek chapters. The header counts items, not pages.
+  The first-boot guide's speed gesture applies inside the reader; vertical list
+  gestures browse books and chapters.
 - Device, Focus, network/update menus, reading/pacing/layout configuration and
   per-book font controls are hidden. Hidden reading preferences reset to their
   upstream defaults on load and on settings edits. Reading speed stays adjustable
@@ -70,13 +75,19 @@ Rendered with the production UI and Arduino_GFX rasterizer at 640×172.
 
 ![English Settings](images/rapid-reader/settings-en.png)
 
-![Russian library](images/rapid-reader/library-ru.png)
+![Russian library: first item](images/rapid-reader/library-ru.png)
 
-![Russian chapter navigation: first page](images/rapid-reader/chapters-ru.png)
+![Russian library: centered item and angled neighbors](images/rapid-reader/library-middle-ru.png)
 
-![Chapter navigation: both directions available](images/rapid-reader/chapters-middle-ru.png)
+![Library during a vertical drag](images/rapid-reader/library-drag-ru.png)
 
-![Chapter navigation: last page](images/rapid-reader/chapters-last-ru.png)
+![Russian chapter navigation: first item](images/rapid-reader/chapters-ru.png)
+
+![Chapter navigation: centered item](images/rapid-reader/chapters-middle-ru.png)
+
+![Chapter navigation: last item](images/rapid-reader/chapters-last-ru.png)
+
+![Chapters during a vertical drag](images/rapid-reader/chapters-drag-ru.png)
 
 ![Loading screen](images/rapid-reader/loading-ru.png)
 
@@ -193,10 +204,11 @@ Twenty-two host product tests passed:
 embedded translations, the full Russian alphabet including Ё/ё in every reading
 font size, imported settings defaults, repeated language switching, navigation
 and boot branding, the UI font and Cyrillic case conversion, brightness pointer
-capture, and library/chapter paging. Library and chapter checks cover bounded
-horizontal swipes, plain arrow clicks in both directions and accidental-selection
-prevention. Arrow opacity checks cover the first, middle,
-last and single page. These checks use the native Arduino shims,
+capture, and library/chapter selection. Picker checks cover vertical drags,
+plain up/down arrow clicks, projected tap targets, prevention of accidental
+opening/seeking, no scrolling while holding still, first/last bounds, count
+changes during a drag, flat front/angled neighbor projection geometry and arrow opacity for
+the first, middle, last and single item. These checks use the native Arduino shims,
 system HarfBuzz and the pinned SheenBidi source. The additional startup/USB checks
 cover persistent logo rendering during low-level storage callbacks, product
 translations, Russian/English USB screens and bounded transfer progress.
@@ -208,7 +220,7 @@ mixed-length playback deadlines and catch-up, speed changes, long-token integer
 arithmetic, and existing CJK timing. All 57 upstream pacing checks passed,
 validating that other profiles retain their existing timing behavior.
 Three serial-protocol checks also pass, covering fragmentation, CRC recovery and
-UTF-8 response chunks. The twenty-one previews above use the production UI and
+UTF-8 response chunks. The twenty-four previews above use the production UI and
 Arduino_GFX rasterizer at the physical display resolution.
 
 The Rev2 firmware compiled successfully with PlatformIO 6.2.0, Arduino ESP32

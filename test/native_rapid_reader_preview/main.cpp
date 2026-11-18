@@ -16,6 +16,14 @@ const ui::themes::Theme& ThemeStore::next(std::string_view) const { return theme
 std::string_view BookLibrary::displayName(const Entry& book) { return book.title; }
 bool BookLibrary::isArticle(const Entry&) { return false; }
 
+namespace {
+    ui::TouchContact previewContact;
+    ui::TouchSampleResult previewPoll(ui::TouchContact& contact) {
+        contact = previewContact;
+        return ui::TouchSampleResult::Contact;
+    }
+}
+
 int main(int argc, char** argv) {
     if (argc != 2)
         return 1;
@@ -29,7 +37,9 @@ int main(int argc, char** argv) {
     settings::InterfaceSettings config;
     screens::InterfaceScreen display;
     constexpr std::array<uint32_t, 5> standby{0, 60000, 300000, 900000, 1800000};
-    for (const auto name : {"boot", "menu-ru", "settings-ru", "settings-en", "library-ru", "chapters-ru", "chapters-middle-ru", "chapters-last-ru", "loading-ru", "long-title-ru", "startup-ru", "usb-ru", "usb-upload-ru", "usb-en", "usb-storage-ru", "tutorial-books-ru", "tutorial-controls-ru", "tutorial-gestures-ru", "tutorial-display-ru", "tutorial-books-en", "tutorial-display-en"}) {
+    for (const auto name : {"boot", "menu-ru", "settings-ru", "settings-en", "library-ru", "library-middle-ru", "library-drag-ru", "chapters-drag-ru", "chapters-ru", "chapters-middle-ru", "chapters-last-ru", "loading-ru", "long-title-ru", "startup-ru", "usb-ru", "usb-upload-ru", "usb-en", "usb-storage-ru", "tutorial-books-ru", "tutorial-controls-ru", "tutorial-gestures-ru", "tutorial-display-ru", "tutorial-books-en", "tutorial-display-en"}) {
+        previewContact = {};
+        ui.setTouchSource({.surface = {640, 172}, .poll = &previewPoll});
         ui.invalidate();
         auto screen = screens::Screen::Read;
         if (std::string_view{name}.starts_with("tutorial-")) {
@@ -71,14 +81,29 @@ int main(int argc, char** argv) {
                 screens::read(ui, "Война и мир", "Лев Толстой", 42, screen);
             } else if (std::string_view{name} == "long-title-ru") {
                 screens::read(ui, "Понедельник начинается в субботу", "Аркадий и Борис Стругацкие", 7, screen);
-            } else if (std::string_view{name} == "library-ru") {
+            } else if (std::string_view{name}.starts_with("library-")) {
                 screens::LibraryScreen library;
                 const std::array<BookLibrary::Entry, 3> books{{
                     {.title = "Война и мир", .author = "Лев Толстой"},
                     {.title = "Понедельник начинается в субботу", .author = "Аркадий и Борис Стругацкие"},
                     {.title = "Мастер и Маргарита", .author = "Михаил Булгаков"}}};
                 const std::vector<screens::LibraryItem> items{{&books[0], "", 42}, {&books[1], "", 7}, {&books[2], "", 0}};
-                library.draw(ui, items, 0, screen);
+                previewContact = {};
+                ui.setTouchSource({.surface = {640, 172}, .poll = &previewPoll});
+                const auto draw = [&](uint32_t time) {
+                    ui.beginFrame(static_cast<uint8_t>(screens::Screen::Library));
+                    library.draw(ui, items, time, screen);
+                    ui.endFrame();
+                };
+                draw(0);
+                if (std::string_view{name} != "library-ru") {
+                    previewContact = {true, 300, 140}; ui.pollTouch(100); draw(100);
+                    previewContact = {true, 300, static_cast<uint16_t>(std::string_view{name} == "library-drag-ru" ? 120 : 100)};
+                    ui.pollTouch(140); draw(140);
+                    if (std::string_view{name} == "library-middle-ru") {
+                        previewContact = {}; ui.pollTouch(180); draw(180); draw(330);
+                    }
+                }
             } else if (std::string_view{name}.starts_with("chapters-")) {
                 screens::ChaptersScreen chapters;
                 const std::array<ChapterMarker, 5> markers{{{"Вступление", 0}, {"Часть первая", 5},
@@ -86,7 +111,18 @@ int main(int argc, char** argv) {
                 ReadingSession reader;
                 reader.state.wordIndex = std::string_view{name} == "chapters-middle-ru" ? 10
                                        : std::string_view{name} == "chapters-last-ru" ? 20 : 0;
-                chapters.draw(ui, markers, reader, settings::ReadingSettings{}, 0, screen);
+                previewContact = {};
+                ui.setTouchSource({.surface = {640, 172}, .poll = &previewPoll});
+                const auto draw = [&](uint32_t time) {
+                    ui.beginFrame(static_cast<uint8_t>(screens::Screen::Chapters));
+                    chapters.draw(ui, markers, reader, settings::ReadingSettings{}, time, screen);
+                    ui.endFrame();
+                };
+                draw(0);
+                if (std::string_view{name} == "chapters-drag-ru") {
+                    previewContact = {true, 300, 140}; ui.pollTouch(100); draw(100);
+                    previewContact = {true, 300, 120}; ui.pollTouch(140); draw(140);
+                }
             } else {
                 config.locale = std::string_view{name} == "settings-en" ? "en" : "ru";
                 ui.setLocale(config.locale);

@@ -12,6 +12,9 @@
 namespace screens {
     void LibraryScreen::reset() {
         carouselGesture_ = {};
+#ifdef RAPID_READER
+        productTube_.reset(selectedIndex_);
+#endif
         dragging_ = false;
         moved_ = false;
         offset_ = 0;

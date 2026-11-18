@@ -51,20 +51,16 @@ namespace screens {
         const size_t readingIndex = next == chapters.begin() ? 0 : static_cast<size_t>(next - chapters.begin() - 1);
         if (source_.data() != chapters.data() || source_.size() != chapters.size()) {
             source_ = chapters;
-            productPage_ = readingIndex / 2;
+            productTube_.reset(readingIndex);
         }
-        rapid::listPaging(ui, chapters.size(), productPage_, carouselGesture_, rapid::PagingStyle::SwipeArrows);
-        for (size_t row = 0; row < 2; ++row) {
-            const size_t index = productPage_ * 2 + row;
-            if (index < chapters.size()) {
-                if (rapid::action(ui, rapid::listRow(ui, row), chapters[index].title, {},
-                                  std::to_string(index + 1), index == readingIndex)) {
-                    ReadingLoop::seekTo(reader, chapters[index].wordIndex);
-                    return Action::Resume;
-                }
-            } else {
-                rapid::action(ui, rapid::listRow(ui, row), "", {}, {}, false, false);
-            }
+        const auto opened = productTube_.draw(ui, chapters.size(), [&](size_t index) {
+            const auto title = chapters[index].title.empty() ? ui.text(UiText::Chapter)
+                                                             : std::string_view{chapters[index].title};
+            return rapid::TubeItem{title, {}, {}, index == readingIndex};
+        }, nowMs);
+        if (opened) {
+            ReadingLoop::seekTo(reader, chapters[*opened].wordIndex);
+            return Action::Resume;
         }
         return Action::None;
 #else

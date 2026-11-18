@@ -145,20 +145,14 @@ namespace screens {
             ui.label(rapid::content(ui), ui.text(UiText::NoLibraryItems), 1, ui::themes::Muted, ui::TextAlign::Center, 2);
             return Action::None;
         }
-        rapid::listPaging(ui, items.size(), productPage_, carouselGesture_, rapid::PagingStyle::SwipeArrows);
-        for (size_t row = 0; row < 2; ++row) {
-            const size_t index = productPage_ * 2 + row;
-            if (index < items.size()) {
-                const auto& item = items[index];
-                const auto author = item.book ? std::string_view{item.book->author} : std::string_view{};
-                if (rapid::action(ui, rapid::listRow(ui, row), title(item), author,
-                                  std::to_string(item.progress) + "%", index == selectedIndex_)) {
-                    selectedIndex_ = index;
-                    return Action::OpenBook;
-                }
-            } else {
-                rapid::action(ui, rapid::listRow(ui, row), "", {}, {}, false, false);
-            }
+        const auto opened = productTube_.draw(ui, items.size(), [&](size_t index) {
+            const auto& item = items[index];
+            return rapid::TubeItem{title(item), item.book ? std::string_view{item.book->author} : std::string_view{},
+                                   std::to_string(item.progress) + "%", index == selectedIndex_};
+        }, nowMs);
+        if (opened) {
+            selectedIndex_ = *opened;
+            return Action::OpenBook;
         }
         return Action::None;
 #else
